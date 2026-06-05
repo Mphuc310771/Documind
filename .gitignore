@@ -1,0 +1,45 @@
+# ===== Environment =====
+.env
+venv/
+.venv/
+venv_win/
+env/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.so
+.Python
+dist/
+build/
+
+# ===== ChromaDB local storage =====
+chroma_db/
+
+# ===== SQLite relational store =====
+app_data.db
+*.db-journal
+
+# ===== Generated outputs =====
+scratch/
+app/static/outputs/
+app/static/datasets/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Logs =====
+*.log
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Local duplicates / editor =====
+* - Copy.*
+*Copy.txt
+*.bak

@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBLM Slide Presentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Urbanist:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --obsidian: #0F0F13;
+            --obsidian-2: #15161c;
+            --lime: #deff9a;
+            --blue: #54a8ff;
+            --white: #FFFFFF;
+            --silver: #A0A0A5;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-strong: rgba(255, 255, 255, 0.09);
+            --line: rgba(255, 255, 255, 0.13);
+            --shadow: 0 32px 100px rgba(0, 0, 0, 0.55);
+            --deck-scale: 1;
+            --accent: #deff9a;
+            --accent2: #54a8ff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(222, 255, 154, 0.12), transparent 28%),
+                radial-gradient(circle at 82% 72%, rgba(84, 168, 255, 0.14), transparent 32%),
+                var(--obsidian);
+            color: var(--white);
+            font-family: "Poppins", system-ui, sans-serif;
+            letter-spacing: 0;
+        }
+
+        body {
+            display: grid;
+            place-items: center;
+            padding-bottom: 88px;
+            box-sizing: border-box;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+            background-size: 42px 42px;
+            mask-image: radial-gradient(circle at center, black, transparent 76%);
+        }
+
+        .topbar {
+            position: fixed;
+            top: 18px;
+            left: 24px;
+            right: 24px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            pointer-events: none;
+        }
+
+        .brand,
+        .nav,
+        .export-btn {
+            pointer-events: auto;
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--line);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            height: 46px;
+            padding: 0 16px;
+            border-radius: 8px;
+            color: var(--white);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.86rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .brand-mark {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--lime);
+            box-shadow: 0 0 22px rgba(222, 255, 154, 0.9);
+        }
+
+        .export-btn,
+        .nav button {
+            height: 46px;
+            border: 1px solid var(--line);
+            color: var(--white);
+            font-family: "Urbanist", sans-serif;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .export-btn {
+            border-radius: 8px;
+            padding: 0 18px;
+            background:
+                linear-gradient(135deg, rgba(222, 255, 154, 0.22), rgba(84, 168, 255, 0.1)),
+                rgba(255, 255, 255, 0.07);
+        }
+
+        .export-btn:hover,
+        .nav button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            border-color: rgba(222, 255, 154, 0.58);
+        }
+
+        .deck-shell {
+            width: 1280px;
+            aspect-ratio: 16 / 9;
+            transform: scale(var(--deck-scale));
+            transform-origin: center center;
+            position: relative;
+            z-index: 5;
+        }
+
+        .slide-container {
+            position: absolute;
+            inset: 0;
+            width: 1280px;
+            height: 720px;
+            aspect-ratio: 16 / 9;
+            display: none;
+            overflow: hidden;
+            padding: 28px 36px 34px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            background:
+                radial-gradient(circle at 12% 14%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 27%),
+                radial-gradient(circle at 84% 18%, color-mix(in srgb, var(--accent2) 20%, transparent), transparent 31%),
+                linear-gradient(135deg, #111116 0%, #161821 48%, #0F0F13 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: var(--shadow);
+        }
+
+        .slide-container.active {
+            display: flex;
+            flex-direction: column;
+            animation: deckEnter 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .slide-container.active > .slide-inner {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+
+        @keyframes deckEnter {
+            from { opacity: 0; transform: translateY(18px) scale(0.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .slide-container.cover.active {
+            background:
+                radial-gradient(ellipse 80% 60% at 8% 20%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 50%),
+                radial-gradient(ellipse 70% 55% at 92% 80%, color-mix(in srgb, var(--accent2) 32%, transparent), transparent 48%),
+                linear-gradient(145deg, #0a0b10 0%, #141824 55%, #0f1016 100%);
+        }
+
+        .slide-container.metrics.active {
+            background:
+                repeating-linear-gradient(-12deg, transparent, transparent 18px, rgba(255, 255, 255, 0.018) 18px, rgba(255, 255, 255, 0.018) 19px),
+                radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 42%),
+                linear-gradient(160deg, #0d0e14 0%, #171a26 100%);
+        }
+
+        .slide-container.summary.active,
+        .slide-container.architecture.active {
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 28%),
+                linear-gradient(135deg, #10121a 0%, #161922 48%, #0f1016 100%);
+        }
+
+        .slide-container.conclusion.active {
+            background:
+                radial-gradient(circle at 78% 42%, color-mix(in srgb, var(--accent2) 24%, transparent), transparent 38%),
+                linear-gradient(120deg, #10121a 0%, #1a1f2e 100%);
+        }
+
+        .stale-banner {
+            position: fixed;
+            top: 72px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            max-width: 720px;
+            padding: 10px 18px;
+            border-radius: 10px;
+            background: rgba(255, 180, 80, 0.12);
+            border: 1px solid rgba(255, 200, 100, 0.35);
+            color: #ffe8c8;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .stale-banner.visible { display: block; }
+
+        .slide-container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.58;
+            pointer-events: none;
+        }
+
+        .slide-container::after {
+            content: "";
+            position: absolute;
+            left: 36px;
+            right: 36px;
+            bottom: 30px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+            pointer-events: none;
+        }
+
+        .slide-inner {
+            position: relative;
+            z-index: 1;
+            min-height: 0;
+            padding-bottom: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .slide-body-fill {
+            flex: 1 1 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .slide-header,
+        .slide-header-compact {
+            flex-shrink: 0;
+        }
+
+        .slide-header .kicker,
+        .slide-header-compact .kicker {
+            margin: 0 0 4px;
+            line-height: 1.2;
+        }
+
+        .slide-header-compact .title.medium {
+            font-size: 2rem;
+            line-height: 1.05;
+            margin: 0;
+        }
+
+        .kicker {
+            color: var(--accent);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 34%, transparent);
+        }
+
+        .title {
+            margin: 0;
+            color: var(--white);
+            font-family: "Urbanist", sans-serif;
+            font-size: 4.1rem;
+            line-height: 0.96;
+            font-weight: 900;
+        }
+
+        .title.medium {
+            font-size: 2.65rem;
+            line-height: 1.05;
+        }
+
+        .muted {
+            color: var(--silver);
+        }
+
+        .glass {
+            backdrop-filter: blur(12px);
+            background: var(--glass);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        }
+
+        .slide-inner.cover {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+            grid-template-rows: 1fr;
+            align-items: stretch;
+            gap: 22px;
+        }
+
+        .cover-copy {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 14px;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            padding-right: 8px;
+        }
+
+        .cover .title {
+            font-size: clamp(2.35rem, 3.8vw, 3.55rem);
+            line-height: 1.08;
+            letter-spacing: -0.02em;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+        }
+
+        .cover-bullets {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 100%;
+            flex: 1;
+            min-height: 0;
+            justify-content: stretch;
+        }
+
+        .cover-bullet,
+        .action-card {
+            backdrop-filter: blur(14px);
+            background:
+                linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 45%, rgba(0, 0, 0, 0.12) 100%);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        /* Accent top edge for content cards */
+        .summary-card,
+        .architecture-panel {
+            position: relative;
+            overflow: hidden;
+        }
+        .summary-card::before,
+        .architecture-panel::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            opacity: 0.9;
+        }
+
+        .cover-bullet {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 10px 14px 10px 38px;
+            min-height: 52px;
+            color: #e8e8ec;
+            font-size: 0.94rem;
+            line-height: 1.38;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .cover-bullet::before {
+            content: "";
+            position: absolute;
+            left: 18px;
+            top: 22px;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 70%, transparent);
+        }
+
+        .hero-visual {
+            height: 100%;
+            min-height: 0;
+            max-height: 100%;
+            align-self: stretch;
+            position: relative;
+            padding: 26px 28px;
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 18px;
+            box-sizing: border-box;
+            background:
+                linear-gradient(160deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(0, 0, 0, 0.2) 100%);
+            border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+            box-shadow:
+                0 28px 80px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        .hero-visual::before {
+            content: "";
+            position: absolute;
+            inset: -40%;
+            background:
+                conic-gradient(from 200deg at 50% 50%, var(--accent), transparent 35%, var(--accent2), transparent 70%, var(--accent));
+            opacity: 0.22;
+            animation: heroSpin 14s linear infinite;
+        }
+
+        @keyframes heroSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hero-mesh {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--accent) 40%, transparent), transparent 45%),
+                radial-gradient(circle at 75% 65%, color-mix(in srgb, var(--accent2) 45%, transparent), transparent 50%);
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        .hero-visual-text {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            color: #ececf2;
+            font-size: 0.98rem;
+            line-height: 1.48;
+            font-weight: 500;
+            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
+            padding: 8px 0 12px;
+            overflow: hidden;
+        }
+
+        .hero-tags {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .hero-tag {
+            padding: 6px 12px;
+            border-radius: 99px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+            color: var(--accent);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* Executive summary: 2×2 — cân đối, không còn 4 cột “ống” trống */
+        .summary-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 14px;
+            min-height: 0;
+        }
+
+        .summary-card {
+            --card-a: var(--accent);
+            --card-b: var(--accent2);
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 0;
+            min-width: 0;
+            border-radius: 16px;
+            background:
+                linear-gradient(155deg, color-mix(in srgb, var(--card-a) 18%, transparent), rgba(0, 0, 0, 0.2));
+            border: 1px solid color-mix(in srgb, var(--card-a) 35%, transparent);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .summary-card-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .card-icon {
+            font-size: 2.1rem;
+            line-height: 1;
+        }
+
+        .card-index {
+            margin-left: auto;
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--card-a);
+            font-family: "Urbanist", sans-serif;
+            font-weight: 900;
+            font-size: 0.78rem;
+        }
+
+        .card-text {
+            margin: 0;
+            color: #f5f5f8;
+            font-size: 1.05rem;
+            line-height: 1.45;
+            font-weight: 600;
+        }
+
+        .architecture-layout {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .architecture-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            min-height: 0;
+            align-items: stretch;
+        }
+
+        .architecture-panel {
+            padding: 22px 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border-radius: 16px;
+            background:
+                linear-gradient(160deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0.15));
+            border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
+        .panel-icon {
+            font-size: 1.75rem;
+            line-height: 1;
+        }
+
+        .panel-label {
+            color: var(--accent);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.72rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            line-height: 1.25;
+        }
+
+        .panel-body {
+            color: #f4f4f8;
+            font-size: clamp(1.15rem, 1.6vw, 1.42rem);
+            line-height: 1.38;
+            font-weight: 700;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: left;
+            padding: 8px 0;
+        }
+
+        .panel-lines {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: auto;
+            flex-shrink: 0;
+        }
+
+        .arch-flow-strip {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .arch-flow-step {
+            flex: 1;
+            text-align: center;
+            padding: 8px 6px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+            color: #e8e8ee;
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .arch-flow-arrow {
+            color: var(--accent2);
+            font-size: 0.9rem;
+            font-weight: 900;
+            opacity: 0.85;
+            flex-shrink: 0;
+        }
+
+        .panel-lines span {
+            height: 8px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            opacity: 0.76;
+        }
+
+        .slide-inner.metrics {
+            gap: 8px;
+        }
+
+        .metrics-stage {
+            flex: 1;
+        }
+
+        .metrics-stage {
+            position: relative;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metrics-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(72px);
+            pointer-events: none;
+            opacity: 0.45;
+            animation: blobFloat 9s ease-in-out infinite;
+        }
+
+        .metrics-blob-1 {
+            width: 220px;
+            height: 220px;
+            left: -40px;
+            top: 10%;
+            background: var(--accent);
+        }
+
+        .metrics-blob-2 {
+            width: 260px;
+            height: 260px;
+            right: -30px;
+            bottom: 0;
+            background: var(--accent2);
+            animation-delay: -3s;
+        }
+
+        @keyframes blobFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(12px, -16px) scale(1.06); }
+        }
+
+        .metrics-grid {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+            align-items: stretch;
+        }
+
+        .metric-card {
+            --card-a: var(--accent);
+            --card-b: var(--accent2);
+            position: relative;
+            padding: 14px 14px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 0;
+            height: 100%;
+            min-width: 0;
+            overflow: hidden;
+            border-radius: 20px;
+            background:
+                linear-gradient(155deg, color-mix(in srgb, var(--card-a) 16%, transparent) 0%, rgba(255, 255, 255, 0.03) 42%, rgba(0, 0, 0, 0.15) 100%);
+            border: 1px solid color-mix(in srgb, var(--card-a) 38%, transparent);
+            box-shadow:
+                0 20px 48px rgba(0, 0, 0, 0.38),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 26px 56px rgba(0, 0, 0, 0.45);
+        }
+
+        .metric-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--card-a), var(--card-b));
+            opacity: 1;
+        }
+
+        .metric-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .metric-icon {
+            width: 44px;
+            height: 44px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            font-size: 1.35rem;
+            background: color-mix(in srgb, var(--card-a) 22%, transparent);
+            border: 1px solid color-mix(in srgb, var(--card-a) 45%, transparent);
+            box-shadow: 0 0 24px color-mix(in srgb, var(--card-a) 35%, transparent);
+        }
+
+        .metric-chip {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--card-a);
+            font-family: "Urbanist", sans-serif;
+            font-weight: 900;
+            font-size: 0.78rem;
+        }
+
+        .metric-label {
+            color: #c8c9d4;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .metric-value {
+            margin: 0 0 10px;
+            font-family: "Urbanist", sans-serif;
+            font-size: clamp(1.85rem, 2.8vw, 2.75rem);
+            line-height: 1.05;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 32px color-mix(in srgb, var(--card-a) 55%, transparent);
+            word-break: break-word;
+        }
+
+        .metric-value--long {
+            font-size: clamp(1.35rem, 2vw, 1.85rem);
+        }
+
+        .metric-note {
+            color: #e2e3ea;
+            font-size: 0.88rem;
+            line-height: 1.42;
+            font-weight: 500;
+            opacity: 0.92;
+        }
+
+        .metric-bar {
+            height: 8px;
+            margin-top: 10px;
+            overflow: hidden;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .metric-bar span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--card-a), var(--card-b));
+            box-shadow: 0 0 16px color-mix(in srgb, var(--card-a) 55%, transparent);
+            animation: barGrow 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes barGrow {
+            from { width: 0 !important; opacity: 0.5; }
+        }
+
+        .metric-spark {
+            height: 8px;
+            margin-top: 10px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, var(--card-a), transparent 75%);
+            opacity: 0.85;
+        }
+
+        .slide-inner.conclusion {
+            display: grid;
+            grid-template-columns: 1fr 1.05fr;
+            grid-template-rows: 1fr;
+            gap: 14px;
+            align-items: stretch;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .conclusion-copy {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 10px;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .action-card {
+            display: grid;
+            grid-template-columns: 48px 1fr;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 16px;
+            min-height: 0;
+        }
+
+        .action-number {
+            width: 52px;
+            height: 52px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #111318;
+            font-family: "Urbanist", sans-serif;
+            font-weight: 900;
+        }
+
+        .action-text {
+            color: #f2f2f5;
+            font-size: 1.08rem;
+            line-height: 1.35;
+            font-weight: 700;
+        }
+
+        .signal-panel {
+            height: 100%;
+            min-height: 0;
+            padding: 20px;
+            display: grid;
+            align-content: end;
+            background:
+                linear-gradient(145deg, color-mix(in srgb, var(--accent) 17%, transparent), color-mix(in srgb, var(--accent2) 10%, transparent)),
+                rgba(255, 255, 255, 0.05);
+        }
+
+        .signal-line {
+            height: 180px;
+            border-left: 2px solid var(--accent);
+            border-bottom: 2px solid var(--accent2);
+            position: relative;
+        }
+
+        .signal-line::after {
+            content: "";
+            position: absolute;
+            left: 26px;
+            right: 10px;
+            bottom: 24px;
+            height: 120px;
+            background: linear-gradient(135deg, transparent 0 42%, var(--accent) 43% 45%, transparent 46% 58%, var(--accent2) 59% 61%, transparent 62%);
+        }
+
+        .slide-footer {
+            position: absolute;
+            left: 36px;
+            right: 36px;
+            bottom: 12px;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            color: rgba(255, 255, 255, 0.52);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .nav {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px 8px;
+            border-radius: 14px;
+            background: rgba(12, 14, 22, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+        }
+
+        .nav button {
+            width: 48px;
+            height: 48px;
+            padding: 0;
+            margin: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 1.35rem;
+            font-family: system-ui, sans-serif;
+        }
+
+        .nav button:disabled {
+            opacity: 0.36;
+            cursor: not-allowed;
+        }
+
+        .counter {
+            min-width: 88px;
+            height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #f0f0f4;
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.88rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+        }
+
+        @media (max-width: 760px) {
+            .topbar {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+            }
+
+            .brand {
+                display: none;
+            }
+
+            .export-btn {
+                height: 40px;
+                padding: 0 12px;
+                font-size: 0.78rem;
+            }
+
+            .nav {
+                bottom: 10px;
+            }
+        }
+
+        @media print {
+            html,
+            body {
+                width: 16in;
+                height: auto;
+                overflow: visible;
+            }
+
+            .deck-shell {
+                width: 16in;
+                height: auto;
+                transform: none !important;
+            }
+
+            .slide-container {
+                position: relative !important;
+                inset: auto !important;
+                display: grid !important;
+                border-radius: 0 !important;
+            }
+        }
+
+        @media print {
+            @page { size: 16in 9in; margin: 0; }
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background-color: #0F0F13 !important; }
+            .slide-container { width: 16in !important; height: 9in !important; page-break-after: always; page-break-inside: avoid; transform: none !important; margin: 0 !important; box-shadow: none !important; }
+            /* Hide navigation buttons during print */
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div id="staleBanner" class="stale-banner no-print" role="status"></div>
+
+    <div class="topbar no-print">
+        <div class="brand"><span class="brand-mark"></span>NBLM Slide Deck</div>
+        <button class="export-btn" type="button" onclick="window.print()">Export to PDF</button>
+    </div>
+
+    <main class="deck-shell" id="deckShell"></main>
+
+    <nav class="nav no-print">
+        <button type="button" id="prevBtn" aria-label="Previous slide">&lt;</button>
+        <div class="counter" id="counter">1 / 5</div>
+        <button type="button" id="nextBtn" aria-label="Next slide">&gt;</button>
+    </nav>
+
+    <script>
+        const LAYOUTS = ["COVER", "EXECUTIVE_SUMMARY", "ARCHITECTURE_TWO_COLUMN", "DATA_METRICS", "CONCLUSION"];
+        const MIDDLE_LAYOUTS = ["EXECUTIVE_SUMMARY", "DATA_METRICS", "ARCHITECTURE_TWO_COLUMN", "EXECUTIVE_SUMMARY", "DATA_METRICS"];
+        const SLIDE_ENGINE_VERSION = "8";
+
+        const METRIC_CARD_THEMES = [
+            ["#8df7ff", "#54a8ff"],
+            ["#deff9a", "#7cffc4"],
+            ["#ffcf70", "#ff8fb7"],
+            ["#b7a8ff", "#54a8ff"]
+        ];
+
+        const ACCENTS = [
+            ["#deff9a", "#54a8ff"],
+            ["#8df7ff", "#deff9a"],
+            ["#b7a8ff", "#54a8ff"],
+            ["#ffcf70", "#deff9a"],
+            ["#ff8fb7", "#8df7ff"],
+            ["#7cffc4", "#54a8ff"]
+        ];
+        let slides = [];
+        let current = 0;
+
+        function escapeHtml(value) {
+            const div = document.createElement("div");
+            div.textContent = value == null ? "" : String(value);
+            return div.innerHTML;
+        }
+
+        function asArray(value) {
+            if (Array.isArray(value)) return value.map(String).filter(Boolean);
+            if (value == null) return [];
+            return [String(value)];
+        }
+
+        function stripSidePrefix(text) {
+            return String(text || "").trim().replace(/^(left|right)\s*:\s*/i, "");
+        }
+
+        function splitInsight(value, fallbackLabel) {
+            let raw = stripSidePrefix(value);
+            if (raw.includes("|")) {
+                const [label, ...rest] = raw.split("|");
+                const cleanLabel = stripSidePrefix(label || "").trim();
+                const body = rest.join("|").trim();
+                return {
+                    label: cleanLabel || fallbackLabel,
+                    body: body || raw
+                };
+            }
+            const parts = raw.split(":");
+            if (parts.length > 1) {
+                const label = stripSidePrefix(parts.shift().trim());
+                const body = parts.join(":").trim();
+                if (/^(left|right)$/i.test(label)) {
+                    return { label: fallbackLabel, body: body || raw };
+                }
+                if (!body && label.length > 0) {
+                    return { label: fallbackLabel, body: label };
+                }
+                return {
+                    label: label || fallbackLabel,
+                    body: body || raw
+                };
+            }
+            return { label: fallbackLabel, body: raw };
+        }
+
+        function normalizeArchPanel(value, fallbackLabel, fallbackIcon) {
+            const parsed = splitInsight(value, fallbackLabel);
+            let label = parsed.label;
+            let body = parsed.body;
+            if (/^(left|right)$/i.test(label)) {
+                body = body || label;
+                label = fallbackLabel;
+            }
+            if (body && body.length < 60 && !label || label === fallbackLabel) {
+                const words = body.split(/\s+/);
+                if (words.length <= 4) {
+                    label = body;
+                    body = "";
+                }
+            }
+            return {
+                label: label || fallbackLabel,
+                body: body || label,
+                icon: fallbackIcon
+            };
+        }
+
+        function summaryIcon(text, index) {
+            const s = String(text || "").toLowerCase();
+            if (/fastapi|api|rag|chroma/i.test(s)) return "⚡";
+            if (/adapter|llm|groq|gemini/i.test(s)) return "🔌";
+            if (/python|pandas|sandbox|data/i.test(s)) return "📊";
+            if (/podcast|tts|audio|edge/i.test(s)) return "🎙️";
+            if (/graph|tri thức|mind/i.test(s)) return "🧠";
+            if (/slide|presentation/i.test(s)) return "🛝";
+            if (/auth|jwt|bảo mật/i.test(s)) return "🔐";
+            return ["📌", "✨", "🎯", "🚀"][index % 4];
+        }
+
+        // Derive a real progress percentage from a metric value when possible
+        // (e.g. "95%" -> 95, "3x" -> 60). Returns null when the value is not numeric.
+        function metricPercent(valueStr) {
+            const s = String(valueStr || "");
+            const pctMatch = s.match(/(\d+(?:[.,]\d+)?)\s*%/);
+            if (pctMatch) return Math.max(4, Math.min(100, parseFloat(pctMatch[1].replace(",", "."))));
+            const xMatch = s.match(/(\d+(?:[.,]\d+)?)\s*x/i);
+            if (xMatch) return Math.max(20, Math.min(100, parseFloat(xMatch[1].replace(",", ".")) * 20));
+            const numMatch = s.match(/^\s*(\d+(?:[.,]\d+)?)\b/);
+            if (numMatch) {
+                const n = parseFloat(numMatch[1].replace(",", "."));
+                return Math.max(10, Math.min(100, n));
+            }
+            return null;
+        }
+
+        function splitMetric(value, index) {
+            const raw = String(value || "").trim();
+            const [left, notePart] = raw.split("|");
+            const hasDelimiter = String(left || "").includes(":");
+            if (!hasDelimiter) {
+                return {
+                    label: `Điểm nhấn ${index + 1}`,
+                    value: `0${index + 1}`,
+                    note: raw || "Chi tiết trong tài liệu",
+                    pct: null,
+                    long: false
+                };
+            }
+
+            const labelValue = splitInsight(left || raw, `Điểm nhấn ${index + 1}`);
+            const valueWords = String(labelValue.body || "").trim().split(/\s+/).filter(Boolean);
+            const hasMetricToken = /(\d+([.,]\d+)?\s?%?|\d+x|low|medium|high|cao|thấp|trung bình)/i.test(labelValue.body || "");
+            if (!hasMetricToken && valueWords.length > 3) {
+                return {
+                    label: labelValue.label,
+                    value: `0${index + 1}`,
+                    note: labelValue.body,
+                    pct: null,
+                    long: false
+                };
+            }
+
+            let finalValue = labelValue.body || `${index + 1}x`;
+            finalValue = finalValue.replace(/\s+/g, " ").trim();
+            if (finalValue.length > 14) {
+                const token = finalValue.match(/(\d+(?:[.,]\d+)?\s*%?|\d+\s*x|24\/7)/i);
+                finalValue = token ? token[1] : finalValue.slice(0, 12) + "…";
+            }
+            return {
+                label: labelValue.label,
+                value: finalValue,
+                note: (notePart || "Nguồn: tài liệu đã tải").trim(),
+                pct: metricPercent(finalValue),
+                long: finalValue.length > 8
+            };
+        }
+
+        function heroTags(slide) {
+            const pick = (text) => {
+                const raw = String(text || "").trim();
+                const token = raw.match(/RAG|GraphRAG|PDF|CSV|XLSX|Quiz|Podcast|Slide|URL|YouTube|AI|Audio|Video/i);
+                if (token) return token[0].toUpperCase();
+                if (raw.length <= 16) return raw;
+                return raw.slice(0, 14).trim() + "…";
+            };
+            const tags = slide.content.slice(0, 3).map(pick);
+            while (tags.length < 3) tags.push(["RAG", "DATA", "SUITE"][tags.length]);
+            return tags;
+        }
+
+        function fallbackSlides() {
+            return [
+                {
+                    layout: "COVER",
+                    kicker: "PITCH DECK",
+                    title: "Enterprise Knowledge Platform",
+                    content: ["Trusted answers from complex documents", "Executive workflows with measurable acceleration", "Premium narrative for strategic alignment"],
+                    visual_prompt: "Dark SaaS command center with luminous knowledge graph"
+                },
+                {
+                    layout: "EXECUTIVE_SUMMARY",
+                    kicker: "KEY SIGNALS",
+                    title: "Executive Summary",
+                    content: ["Knowledge work needs faster synthesis", "Retrieval improves confidence and traceability", "Automation compresses preparation cycles", "Pilot metrics should guide scale"],
+                    visual_prompt: "Four executive insight cards on dark glass dashboard"
+                },
+                {
+                    layout: "DATA_METRICS",
+                    kicker: "IMPACT",
+                    title: "Performance Signals",
+                    content: ["Speed: 3x | Faster executive preparation", "Reuse: 2x | More value from uploaded assets", "Quality: 95% | Better grounded confidence", "Cost: Low | Focused pilot investment"],
+                    visual_prompt: "Premium KPI wall with luminous metric tiles"
+                },
+                {
+                    layout: "ARCHITECTURE_TWO_COLUMN",
+                    kicker: "SYSTEM VIEW",
+                    title: "Operating Architecture",
+                    content: ["Current state: Fragmented context slows decisions", "Target state: Retrieval layer converts documents into trusted answers"],
+                    visual_prompt: "Two-column architecture with connected neon nodes"
+                },
+                {
+                    layout: "EXECUTIVE_SUMMARY",
+                    kicker: "PRIORITIES",
+                    title: "Execution Priorities",
+                    content: ["Choose repeated high-friction workflows", "Keep source traceability visible", "Measure quality before scale", "Automate after confidence is proven"],
+                    visual_prompt: "Executive priority matrix with glass panels"
+                },
+                {
+                    layout: "DATA_METRICS",
+                    kicker: "VALUE CASE",
+                    title: "Impact Metrics",
+                    content: ["Speed: 3x | Faster synthesis cycles", "Quality: 95% | Higher answer confidence", "Coverage: 5 flows | Broader workflow activation", "Risk: Low | Controlled rollout path"],
+                    visual_prompt: "Premium KPI wall with cyber-lime numbers"
+                },
+                {
+                    layout: "ARCHITECTURE_TWO_COLUMN",
+                    kicker: "ROLLOUT",
+                    title: "Implementation Model",
+                    content: ["Pilot scope: Validate one critical document workflow", "Scale path: Expand after measurable quality thresholds"],
+                    visual_prompt: "Dark roadmap architecture with staged rollout gates"
+                },
+                {
+                    layout: "EXECUTIVE_SUMMARY",
+                    kicker: "GOVERNANCE",
+                    title: "Control Model",
+                    content: ["Define source freshness expectations", "Review answer quality weekly", "Track adoption by workflow", "Maintain escalation paths for uncertainty"],
+                    visual_prompt: "Governance dashboard with premium audit trails"
+                },
+                {
+                    layout: "DATA_METRICS",
+                    kicker: "ROI",
+                    title: "Adoption Economics",
+                    content: ["Time saved: 40% | Less manual synthesis", "Users: 25+ | Pilot-ready group", "Accuracy: High | Grounded response generation", "Payback: Fast | Immediate workflow compression"],
+                    visual_prompt: "Financial value dashboard with elegant dark metrics"
+                },
+                {
+                    layout: "CONCLUSION",
+                    kicker: "NEXT MOVES",
+                    title: "Recommended Path Forward",
+                    content: ["Approve focused pilot scope", "Instrument quality and adoption metrics", "Scale after evidence-based validation"],
+                    visual_prompt: "Executive roadmap path with luminous decision point"
+                }
+            ];
+        }
+
+        function normalizeSlides(rawSlides) {
+            const source = Array.isArray(rawSlides) && rawSlides.length ? rawSlides : fallbackSlides();
+            const fallbacks = fallbackSlides();
+
+            return source.map((rawSlide, index) => {
+                const fallback = fallbacks[index % fallbacks.length];
+                const raw = rawSlide && typeof rawSlide === "object" ? rawSlide : fallback;
+                let layout = String(raw.layout || "").trim().toUpperCase();
+                if (!LAYOUTS.includes(layout)) {
+                    layout = index === 0 ? "COVER" : (index === source.length - 1 ? "CONCLUSION" : MIDDLE_LAYOUTS[(index - 1) % MIDDLE_LAYOUTS.length]);
+                }
+                if (index === 0) layout = "COVER";
+                if (index === source.length - 1 && source.length > 1) layout = "CONCLUSION";
+                return {
+                    layout,
+                    kicker: String(raw.kicker || fallback.kicker).trim(),
+                    title: String(raw.title || fallback.title).trim(),
+                    content: asArray(raw.content).length ? asArray(raw.content) : fallback.content,
+                    visual_prompt: String(raw.visual_prompt || fallback.visual_prompt).trim()
+                };
+            });
+        }
+
+        function sectionStyle(index) {
+            const pair = ACCENTS[index % ACCENTS.length];
+            return `style="--accent:${pair[0]};--accent2:${pair[1]}"`;
+        }
+
+        function metricIcon(label, value, index) {
+            const s = `${label} ${value}`.toLowerCase();
+            if (/jwt|auth|login|token/i.test(s)) return "🔐";
+            if (/password|hash|pbkdf|mã hóa/i.test(s)) return "🔑";
+            if (/isolat|tenant|notebook|riêng/i.test(s)) return "🛡️";
+            if (/sandbox|pandas|code|exec/i.test(s)) return "⚙️";
+            if (/speed|nhanh|latency|ms/i.test(s)) return "⚡";
+            if (/quality|chính xác|accuracy/i.test(s)) return "✅";
+            if (/cost|chi phí|roi|tiết kiệm/i.test(s)) return "💰";
+            if (/%|percent|tỷ lệ/i.test(s)) return "📈";
+            return ["📊", "🎯", "✨", "🚀"][index % 4];
+        }
+
+        function slideHeader(slide, titleClass = "medium", compact = false) {
+            return `
+                <div class="${compact ? "slide-header-compact" : "slide-header"}">
+                    <div class="kicker">${escapeHtml(slide.kicker || slide.layout)}</div>
+                    <h1 class="title ${titleClass}">${escapeHtml(slide.title)}</h1>
+                </div>
+            `;
+        }
+
+        function renderCover(slide, index) {
+            const tags = heroTags(slide);
+            return `
+                <section class="slide-container cover" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner cover">
+                        <div class="cover-copy">
+                            ${slideHeader(slide, "")}
+                            <div class="cover-bullets">
+                                ${slide.content.slice(0, 3).map(item => `<div class="cover-bullet">${escapeHtml(item)}</div>`).join("")}
+                            </div>
+                        </div>
+                        <div class="hero-visual">
+                            <div class="hero-mesh"></div>
+                            <p class="hero-visual-text">${escapeHtml(slide.visual_prompt || "Trình chiếu chiến lược từ tài liệu nghiên cứu")}</p>
+                            <div class="hero-tags">
+                                ${tags.map((t) => `<span class="hero-tag">${escapeHtml(t)}</span>`).join("")}
+                            </div>
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderExecutiveSummary(slide, index) {
+            const themes = METRIC_CARD_THEMES;
+            return `
+                <section class="slide-container summary" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner summary">
+                        ${slideHeader(slide, "medium", true)}
+                        <div class="slide-body-fill">
+                            <div class="summary-grid">
+                            ${slide.content.slice(0, 4).map((item, idx) => {
+                                const t = themes[idx % themes.length];
+                                return `
+                                <div class="summary-card" style="--card-a:${t[0]};--card-b:${t[1]}">
+                                    <div class="summary-card-top">
+                                        <span class="card-icon" aria-hidden="true">${summaryIcon(item, idx)}</span>
+                                        <span class="card-index">0${idx + 1}</span>
+                                    </div>
+                                    <div class="card-text">${escapeHtml(item)}</div>
+                                </div>
+                            `;
+                            }).join("")}
+                            </div>
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderArchitecture(slide, index) {
+            const panels = [
+                normalizeArchPanel(slide.content[0], "Adapter", "🔌"),
+                normalizeArchPanel(slide.content[1], "Repository", "🗄️")
+            ];
+            const layers = ["Presentation", "Application", "Infrastructure", "Domain"];
+            return `
+                <section class="slide-container architecture" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner architecture">
+                        ${slideHeader(slide, "medium", true)}
+                        <div class="slide-body-fill architecture-layout">
+                            <div class="architecture-grid">
+                            ${panels.map((panel) => `
+                                <div class="architecture-panel">
+                                    <div class="panel-head">
+                                        <span class="panel-icon" aria-hidden="true">${panel.icon}</span>
+                                        <div class="panel-label">${escapeHtml(panel.label)}</div>
+                                    </div>
+                                    <div class="panel-body">${escapeHtml(panel.body)}</div>
+                                    <div class="panel-lines"><span></span><span></span><span></span></div>
+                                </div>
+                            `).join("")}
+                            </div>
+                            <div class="arch-flow-strip" aria-hidden="true">
+                                ${layers.map((name, i) => `
+                                    ${i > 0 ? '<span class="arch-flow-arrow">→</span>' : ""}
+                                    <span class="arch-flow-step">${escapeHtml(name)}</span>
+                                `).join("")}
+                            </div>
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderMetrics(slide, index) {
+            return `
+                <section class="slide-container metrics" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner metrics">
+                        ${slideHeader(slide, "medium", true)}
+                        <div class="slide-body-fill metrics-stage">
+                            <div class="metrics-blob metrics-blob-1"></div>
+                            <div class="metrics-blob metrics-blob-2"></div>
+                            <div class="metrics-grid">
+                            ${slide.content.slice(0, 4).map((item, idx) => {
+                                const metric = splitMetric(item, idx);
+                                const theme = METRIC_CARD_THEMES[idx % METRIC_CARD_THEMES.length];
+                                const cardStyle = `style="--card-a:${theme[0]};--card-b:${theme[1]}"`;
+                                const icon = metricIcon(metric.label, metric.value, idx);
+                                const bar = (metric.pct != null)
+                                    ? `<div class="metric-bar" title="${metric.pct}%"><span style="width:${metric.pct}%"></span></div>`
+                                    : `<div class="metric-spark"></div>`;
+                                const valueClass = metric.long ? "metric-value metric-value--long" : "metric-value";
+                                return `
+                                    <div class="metric-card" ${cardStyle}>
+                                        <div class="metric-card-top">
+                                            <span class="metric-icon" aria-hidden="true">${icon}</span>
+                                            <span class="metric-chip">0${idx + 1}</span>
+                                        </div>
+                                        <div>
+                                            <div class="metric-label">${escapeHtml(metric.label)}</div>
+                                            <div class="${valueClass}">${escapeHtml(metric.value)}</div>
+                                            <div class="metric-note">${escapeHtml(metric.note)}</div>
+                                        </div>
+                                        ${bar}
+                                    </div>
+                                `;
+                            }).join("")}
+                            </div>
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderConclusion(slide, index) {
+            return `
+                <section class="slide-container conclusion" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner conclusion">
+                        <div class="conclusion-copy">
+                            ${slideHeader(slide, "medium", true)}
+                            <div class="actions">
+                                ${slide.content.slice(0, 3).map((item, idx) => `
+                                    <div class="action-card">
+                                        <div class="action-number">${idx + 1}</div>
+                                        <div class="action-text">${escapeHtml(item)}</div>
+                                    </div>
+                                `).join("")}
+                            </div>
+                        </div>
+                        <div class="signal-panel glass">
+                            <div class="signal-line"></div>
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderFooter(slide, index) {
+            return `
+                <div class="slide-footer">
+                    <span>${escapeHtml(slide.layout.replaceAll("_", " "))}</span>
+                    <span>${String(index + 1).padStart(2, "0")} / ${String(slides.length || LAYOUTS.length).padStart(2, "0")}</span>
+                </div>
+            `;
+        }
+
+        function renderDeck() {
+            const shell = document.getElementById("deckShell");
+            shell.innerHTML = slides.map((slide, index) => {
+                if (slide.layout === "COVER") return renderCover(slide, index);
+                if (slide.layout === "EXECUTIVE_SUMMARY") return renderExecutiveSummary(slide, index);
+                if (slide.layout === "ARCHITECTURE_TWO_COLUMN") return renderArchitecture(slide, index);
+                if (slide.layout === "DATA_METRICS") return renderMetrics(slide, index);
+                return renderConclusion(slide, index);
+            }).join("");
+            showSlide(0);
+            scaleDeck();
+        }
+
+        function showSlide(index) {
+            current = Math.max(0, Math.min(index, slides.length - 1));
+            document.querySelectorAll(".slide-container").forEach((slide, idx) => {
+                slide.classList.toggle("active", idx === current);
+            });
+            document.getElementById("counter").textContent = `${current + 1} / ${slides.length}`;
+            document.getElementById("prevBtn").disabled = current === 0;
+            document.getElementById("nextBtn").disabled = current === slides.length - 1;
+        }
+
+        function scaleDeck() {
+            const scale = Math.min((window.innerWidth - 48) / 1280, (window.innerHeight - 140) / 720, 1);
+            document.documentElement.style.setProperty("--deck-scale", String(Math.max(0.28, scale)));
+        }
+
+        function showStaleBannerIfNeeded(fromCache) {
+            const el = document.getElementById("staleBanner");
+            if (!el || !fromCache) return;
+            let meta = null;
+            try {
+                meta = JSON.parse(localStorage.getItem("slide_deck_meta") || "null");
+            } catch (e) {}
+            if (!meta || meta.version !== SLIDE_ENGINE_VERSION) {
+                el.textContent = "Bạn đang xem bộ slide cũ (hoặc giao diện mới chưa áp dụng). Hãy tạo lại slide từ Studio, rồi mở tab này (Ctrl+F5 nếu vẫn giống cũ).";
+                el.classList.add("visible");
+            }
+        }
+
+        function load() {
+            let parsed = [];
+            let fromCache = false;
+            try {
+                const raw = localStorage.getItem("slide_deck_data");
+                if (raw) {
+                    parsed = JSON.parse(raw);
+                    fromCache = Array.isArray(parsed) && parsed.length > 0;
+                }
+            } catch (error) {
+                parsed = [];
+            }
+            slides = normalizeSlides(parsed);
+            showStaleBannerIfNeeded(fromCache);
+            renderDeck();
+        }
+
+        document.getElementById("prevBtn").addEventListener("click", () => showSlide(current - 1));
+        document.getElementById("nextBtn").addEventListener("click", () => showSlide(current + 1));
+        window.addEventListener("resize", scaleDeck);
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowRight" || event.key === " ") {
+                event.preventDefault();
+                showSlide(current + 1);
+            }
+            if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                showSlide(current - 1);
+            }
+        });
+        window.addEventListener("load", load);
+    </script>
+</body>
+</html>

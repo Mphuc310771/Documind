@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package vision;
+
+service VisionProcessor {
+    rpc ExtractText (ImageRequest) returns (ExtractedTextResponse);
+}
+
+message ImageRequest {
+    bytes image_data = 1;
+    string filename = 2;
+}
+
+message ExtractedTextResponse {
+    string text = 1;
+    map<string, string> metadata = 2;
+}

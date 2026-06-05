@@ -1,0 +1,33 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+python-multipart
+
+groq
+requests
+
+sentence-transformers
+chromadb
+pdfplumber
+PyPDF2
+langchain-text-splitters
+
+playwright
+pandas
+openpyxl
+tabulate
+matplotlib
+Pillow
+
+grpcio
+grpcio-tools
+protobuf
+edge-tts
+
+# ----- Optional (install only if you enable these features) -----
+# Audio/video transcription (Whisper). Also requires ffmpeg in PATH:
+#   pip install faster-whisper
+# Background task queue (Celery + Redis). Requires a running Redis server:
+#   pip install celery redis
+pytesseract
