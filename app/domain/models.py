@@ -51,6 +51,11 @@ class CanvasEditRequest(BaseModel):
     provider: str = "auto"
 
 
+class TtsSpeakRequest(BaseModel):
+    text: str
+    voice: str = "male"  # male | female
+
+
 class AuthRequest(BaseModel):
     username: str
     password: str

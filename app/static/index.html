@@ -431,8 +431,8 @@
         }
         .canvas-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
         @media (max-width: 720px) { .canvas-body { grid-template-columns: 1fr; } .canvas-preview-pane { display: none; } }
-        .canvas-editor-pane, .canvas-preview-pane { min-height: 0; overflow: auto; }
-        .canvas-editor-pane { border-right: 1px solid var(--border-glass); display: flex; flex-direction: column; }
+        .canvas-editor-pane, .canvas-preview-pane { min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+        .canvas-editor-pane { border-right: 1px solid var(--border-glass); }
         #canvasEditor {
             flex: 1; width: 100%; resize: none; border: none; outline: none;
             background: var(--bg-primary); color: var(--text-primary);
@@ -465,7 +465,13 @@
         .canvas-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
         .canvas-btn.primary { background: var(--accent-gradient); color: var(--button-contrast); border: none; }
         .canvas-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .canvas-hint { font-size: 0.72rem; color: var(--text-muted); padding: 0 18px 10px; background: var(--header-bg); }
+        .canvas-hint { font-size: 0.72rem; color: var(--text-muted); padding: 0 18px 10px; background: var(--header-bg); line-height: 1.5; }
+        .canvas-empty-guide {
+            padding: 24px 8px; color: var(--text-muted); font-size: 0.88rem; line-height: 1.65;
+        }
+        .canvas-empty-guide ol { margin: 12px 0 0 18px; padding: 0; }
+        .canvas-empty-guide li { margin-bottom: 6px; }
+        .canvas-empty-guide strong { color: var(--text-secondary); }
 
         /* ===== Auth gate ===== */
         .auth-overlay {
@@ -2346,7 +2352,7 @@
         </div>
         <div class="chat-input-toolbar">
             <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-                <label class="tts-toggle"><input type="checkbox" id="ttsToggle"><span>🔊 Đọc phản hồi</span></label>
+                <label class="tts-toggle"><input type="checkbox" id="ttsToggle"><span>🔊 Đọc phản hồi (giọng NamMinh)</span></label>
                 <label class="tts-toggle" title="Cho phép AI tìm kiếm trên Internet khi tài liệu không có"><input type="checkbox" id="webSearchToggle"><span>🌐 Tìm web</span></label>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
@@ -2386,7 +2392,7 @@
                 <div class="player-disc" style="width:38px; height:38px; background:var(--accent-gradient); border-radius:50%; display:grid; place-items:center; font-size:1.1rem; border: 2px solid var(--accent); box-shadow:0 0 15px rgba(222, 255, 154, 0.4); animation: spin 4s linear infinite; animation-play-state: paused;" id="playerDisc">🎙️</div>
                 <div style="flex:1; min-width:0;">
                     <div style="font-size:0.85rem; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:'Plus Jakarta Sans', sans-serif;">Podcast Tóm Tắt</div>
-                    <div style="font-size:0.7rem; color:var(--text-muted); font-weight: 500;" id="playerHostStatus">Giọng đọc MC A & B (Neural)</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); font-weight: 500;" id="playerHostStatus">Lan (HoaiMy) &amp; Minh (NamMinh) · Neural</div>
                 </div>
                 <button onclick="closePodcastPlayer()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem; padding:4px; transition:var(--transition);" onhover="this.style.color='var(--text-primary)'">✕</button>
             </div>
@@ -2492,6 +2498,7 @@
         <div class="canvas-head">
             <span style="font-size:1.1rem;">🎨</span>
             <input type="text" class="canvas-title" id="canvasTitle" placeholder="Tài liệu Canvas" value="Tài liệu Canvas">
+            <button class="canvas-btn" onclick="canvasImportFromChat()" title="Nhập tin nhắn AI cuối từ chat">📥 Từ chat</button>
             <button class="canvas-btn" onclick="canvasCopy()" title="Sao chép">📋</button>
             <button class="canvas-btn" onclick="canvasExport()" title="Xuất .md">⬇</button>
             <button class="canvas-btn" onclick="canvasSaveToOutputs()" title="Lưu vào Intelligence Suite">💾</button>
@@ -2507,7 +2514,7 @@
                 <div class="markdown-body" id="canvasPreview" style="line-height:1.6; font-size:0.95rem; color:var(--text-secondary); margin-top:10px;"></div>
             </div>
         </div>
-        <div class="canvas-hint" id="canvasHint">💡 Bôi đen đoạn cần sửa (hoặc để trống để sửa toàn bộ), nhập chỉ dẫn rồi nhấn “Sửa với AI”.</div>
+        <div class="canvas-hint" id="canvasHint">💡 <strong>Bước 1:</strong> Dán nội dung hoặc bấm <strong>📥 Từ chat</strong>. <strong>Bước 2:</strong> Bôi đen đoạn ở ô <strong>Soạn thảo</strong> bên trái (tuỳ chọn). <strong>Bước 3:</strong> Nhập chỉ dẫn → <strong>✨ Sửa với AI</strong>.</div>
         <div class="canvas-toolbar">
             <input type="text" class="canvas-instruction" id="canvasInstruction" placeholder="VD: viết lại trang trọng hơn, rút gọn, dịch sang tiếng Anh...">
             <button class="canvas-btn primary" id="canvasEditBtn" onclick="canvasAiEdit()">✨ Sửa với AI</button>
@@ -3038,15 +3045,89 @@
     }
 
     // ===== Interactive Canvas Workspace =====
+    let canvasPersistTimer = null;
+    let canvasSavedSelection = null;
+    const CANVAS_HINT_DEFAULT = '💡 <strong>Bước 1:</strong> Dán nội dung hoặc bấm <strong>📥 Từ chat</strong>. <strong>Bước 2:</strong> Bôi đen đoạn ở ô <strong>Soạn thảo</strong> bên trái (tuỳ chọn). <strong>Bước 3:</strong> Nhập chỉ dẫn → <strong>✨ Sửa với AI</strong>.';
+
+    function canvasEmptyGuideHtml() {
+        return `<div class="canvas-empty-guide">
+            <div style="font-size:1.5rem; margin-bottom:8px;">🎨 Canvas trống</div>
+            <p>Canvas là nơi soạn và chỉnh sửa tài liệu Markdown với AI.</p>
+            <ol>
+                <li><strong>Dán</strong> văn bản vào ô bên trái, hoặc bấm <strong>📥 Từ chat</strong> để lấy câu trả lời AI gần nhất.</li>
+                <li>Từ Studio (Tóm tắt, Hướng dẫn học…), bấm <strong>🎨 Mở trong Canvas</strong>.</li>
+                <li>Bôi đen một đoạn ở ô <strong>Soạn thảo bên trái</strong> (không phải Xem trước), nhập chỉ dẫn rồi bấm <strong>✨ Sửa với AI</strong>.</li>
+            </ol>
+        </div>`;
+    }
+
+    function canvasCaptureSelection() {
+        const editor = document.getElementById('canvasEditor');
+        if (!editor) return;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        if (end > start) {
+            canvasSavedSelection = { start, end, text: editor.value.slice(start, end) };
+        } else {
+            canvasSavedSelection = null;
+        }
+        canvasUpdateSelectionHint();
+    }
+
+    function canvasClearSelection() {
+        canvasSavedSelection = null;
+        const editor = document.getElementById('canvasEditor');
+        if (editor) editor.setSelectionRange(editor.selectionStart, editor.selectionStart);
+        canvasUpdateSelectionHint();
+    }
+
+    function canvasUpdateSelectionHint() {
+        const hint = document.getElementById('canvasHint');
+        if (!hint) return;
+        if (canvasSavedSelection?.text) {
+            const preview = canvasSavedSelection.text.replace(/\s+/g, ' ').trim();
+            const snippet = preview.length > 48 ? preview.slice(0, 48) + '…' : preview;
+            hint.innerHTML = `✅ Đã chọn <strong>${canvasSavedSelection.text.length}</strong> ký tự: “${escapeHtml(snippet)}” — AI sẽ chỉ sửa đoạn này. <button type="button" class="canvas-btn" style="padding:2px 8px;font-size:0.68rem;margin-left:6px;" onclick="canvasClearSelection()">Bỏ chọn</button>`;
+        } else {
+            hint.innerHTML = CANVAS_HINT_DEFAULT;
+        }
+    }
+
+    function canvasGetSelectionRange() {
+        const editor = document.getElementById('canvasEditor');
+        if (!editor) return { start: 0, end: 0, hasSelection: false, text: '' };
+
+        const liveStart = editor.selectionStart;
+        const liveEnd = editor.selectionEnd;
+        if (liveEnd > liveStart) {
+            const text = editor.value.slice(liveStart, liveEnd);
+            canvasSavedSelection = { start: liveStart, end: liveEnd, text };
+            return { start: liveStart, end: liveEnd, hasSelection: true, text };
+        }
+
+        if (canvasSavedSelection) {
+            const { start, end, text } = canvasSavedSelection;
+            if (editor.value.slice(start, end) === text) {
+                return { start, end, hasSelection: true, text };
+            }
+        }
+        return { start: 0, end: 0, hasSelection: false, text: '' };
+    }
+
     function canvasUpdatePreview() {
         const editor = document.getElementById('canvasEditor');
         const preview = document.getElementById('canvasPreview');
         if (!editor || !preview) return;
+        const text = editor.value || '';
+        if (!text.trim()) {
+            preview.innerHTML = canvasEmptyGuideHtml();
+            return;
+        }
         try {
-            const html = marked.parse(editor.value || '');
+            const html = marked.parse(text);
             preview.innerHTML = DOMPurify.sanitize(html, { USE_PROFILES: { html: true, svg: true, mathMl: true } });
         } catch (e) {
-            preview.textContent = editor.value || '';
+            preview.textContent = text;
         }
     }
 
@@ -3058,6 +3139,45 @@
         } catch (e) {}
     }
 
+    function canvasSchedulePersist() {
+        clearTimeout(canvasPersistTimer);
+        canvasPersistTimer = setTimeout(canvasPersist, 400);
+    }
+
+    function canvasImportFromChat() {
+        const editor = document.getElementById('canvasEditor');
+        if (!editor) return;
+        let text = '';
+        try {
+            const hist = JSON.parse(localStorage.getItem(`chat_history_${currentNotebookId}`) || '[]');
+            for (let i = hist.length - 1; i >= 0; i--) {
+                if (hist[i].role === 'bot' && String(hist[i].content || '').trim()) {
+                    text = hist[i].content;
+                    break;
+                }
+            }
+        } catch (e) {}
+        if (!text.trim()) {
+            const nodes = document.querySelectorAll('#messages .message.bot .bot-content');
+            const last = nodes[nodes.length - 1];
+            if (last) text = last.innerText || '';
+        }
+        if (!text.trim()) {
+            showNotification('Chưa có tin nhắn AI nào. Hãy chat trước hoặc dán nội dung vào Canvas.', 'error');
+            return;
+        }
+        editor.value = text;
+        canvasUpdatePreview();
+        canvasPersist();
+        editor.focus();
+        showNotification('Đã nhập tin nhắn AI cuối vào Canvas.', 'success');
+    }
+
+    function openCanvasFromStudio() {
+        const p = window._studioCanvasPayload;
+        openCanvas(p?.content ?? '', p?.title ?? 'Tài liệu Canvas');
+    }
+
     function openCanvas(content = null, title = null) {
         const overlay = document.getElementById('canvasOverlay');
         const editor = document.getElementById('canvasEditor');
@@ -3065,7 +3185,6 @@
         if (!overlay || !editor) return;
 
         if (content === null) {
-            // Restore last canvas for this notebook
             try {
                 const saved = JSON.parse(localStorage.getItem(`canvas_${currentNotebookId}`) || 'null');
                 editor.value = saved?.content || '';
@@ -3077,7 +3196,9 @@
         }
 
         overlay.classList.add('open');
+        canvasSavedSelection = null;
         canvasUpdatePreview();
+        canvasUpdateSelectionHint();
         editor.focus();
     }
 
@@ -3094,12 +3215,10 @@
         if (!editor || !instrEl) return;
 
         const instruction = instrEl.value.trim();
-        if (!instruction) { showNotification('Hãy nhập chỉ dẫn chỉnh sửa.', 'error'); return; }
+        if (!instruction) { showNotification('Hãy nhập chỉ dẫn chỉnh sửa (VD: rút gọn, dịch sang tiếng Anh).', 'error'); instrEl.focus(); return; }
+        if (!editor.value.trim()) { showNotification('Canvas đang trống — dán nội dung hoặc bấm 📥 Từ chat trước.', 'error'); return; }
 
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
-        const hasSelection = end > start;
-        const selection = hasSelection ? editor.value.slice(start, end) : '';
+        const { start, end, hasSelection, text: selection } = canvasGetSelectionRange();
 
         const providerEl = document.getElementById('apiProvider');
         const provider = providerEl ? providerEl.value : 'auto';
@@ -3107,7 +3226,7 @@
         btn.disabled = true;
         const oldLabel = btn.textContent;
         btn.textContent = '⏳ Đang sửa...';
-        if (hint) hint.textContent = hasSelection ? '✏️ Đang viết lại đoạn đã chọn...' : '✏️ Đang viết lại toàn bộ tài liệu...';
+        if (hint) hint.textContent = hasSelection ? `✏️ Đang viết lại đoạn đã chọn (${selection.length} ký tự)...` : '✏️ Đang viết lại toàn bộ tài liệu...';
 
         try {
             const res = await fetch('/canvas/edit', {
@@ -3129,14 +3248,15 @@
             }
             canvasUpdatePreview();
             canvasPersist();
+            canvasSavedSelection = null;
             instrEl.value = '';
-            showNotification('Canvas đã được cập nhật bằng AI!', 'success');
+            showNotification(hasSelection ? 'Đã cập nhật đoạn đã chọn!' : 'Canvas đã được cập nhật bằng AI!', 'success');
         } catch (e) {
             showNotification(e.message || 'Không thể chỉnh sửa Canvas.', 'error');
         } finally {
             btn.disabled = false;
             btn.textContent = oldLabel;
-            if (hint) hint.textContent = '💡 Bôi đen đoạn cần sửa (hoặc để trống để sửa toàn bộ), nhập chỉ dẫn rồi nhấn “Sửa với AI”.';
+            if (hint) canvasUpdateSelectionHint();
         }
     }
 
@@ -3631,6 +3751,21 @@
 
     document.getElementById('canvasEditor')?.addEventListener('input', () => {
         canvasUpdatePreview();
+        canvasSchedulePersist();
+        if (canvasSavedSelection) {
+            const editor = document.getElementById('canvasEditor');
+            const { start, end, text } = canvasSavedSelection;
+            if (!editor || editor.value.slice(start, end) !== text) canvasSavedSelection = null;
+            canvasUpdateSelectionHint();
+        }
+    });
+    ['select', 'mouseup', 'keyup'].forEach(evt => {
+        document.getElementById('canvasEditor')?.addEventListener(evt, canvasCaptureSelection);
+    });
+    document.getElementById('canvasEditBtn')?.addEventListener('mousedown', (e) => e.preventDefault());
+    document.getElementById('canvasTitle')?.addEventListener('input', canvasSchedulePersist);
+    document.getElementById('canvasOverlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'canvasOverlay') closeCanvas();
     });
     document.getElementById('canvasInstruction')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); canvasAiEdit(); }
@@ -4089,18 +4224,90 @@
     }
 
     // ===== Text To Speech Playback =====
-    function speakText(text) {
+    let currentTtsAudio = null;
+    let cachedViVoices = { male: null, female: null, default: null };
+
+    function scoreViVoice(voice, preferMale) {
+        const name = (voice.name || '').toLowerCase();
+        let score = 0;
+        if (name.includes('natural') || name.includes('neural')) score += 12;
+        if (preferMale && (name.includes('namminh') || name.includes('nam minh'))) score += 25;
+        if (!preferMale && (name.includes('hoaimy') || name.includes('hoai my'))) score += 25;
+        if (preferMale && (name.includes('male') || name.includes('nam '))) score += 8;
+        if (!preferMale && (name.includes('female') || name.includes('nu '))) score += 8;
+        // Windows default "An" often sounds high/childish — deprioritize
+        if (/\ban\b/.test(name) || name.endsWith(' an') || name.includes('microsoft an')) score -= 20;
+        if (name.includes('child') || name.includes('kid')) score -= 30;
+        return score;
+    }
+
+    function loadViVoices() {
+        if (!('speechSynthesis' in window)) return;
+        const vi = window.speechSynthesis.getVoices().filter(v =>
+            (v.lang || '').toLowerCase().startsWith('vi')
+        );
+        if (!vi.length) return;
+        const male = [...vi].sort((a, b) => scoreViVoice(b, true) - scoreViVoice(a, true))[0];
+        const female = [...vi].sort((a, b) => scoreViVoice(b, false) - scoreViVoice(a, false))[0];
+        cachedViVoices = { male, female, default: male || vi[0] };
+    }
+
+    function pickBrowserViVoice(preferMale = true) {
+        loadViVoices();
+        return preferMale
+            ? (cachedViVoices.male || cachedViVoices.default)
+            : (cachedViVoices.female || cachedViVoices.default);
+    }
+
+    function speakTextBrowser(text, preferMale = true) {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'vi-VN';
+        utterance.rate = 0.94;
+        utterance.pitch = preferMale ? 0.92 : 1.0;
+        const voice = pickBrowserViVoice(preferMale);
+        if (voice) utterance.voice = voice;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    async function speakText(text) {
         const ttsToggle = document.getElementById('ttsToggle');
         if (!ttsToggle || !ttsToggle.checked) return;
 
-        const cleanText = text.replace(/<[^>]*>/g, '').replace(/[*#$_]/g, '');
+        const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/[*#$_`~]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!cleanText) return;
 
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'vi-VN';
-            window.speechSynthesis.speak(utterance);
+        if (currentTtsAudio) {
+            currentTtsAudio.pause();
+            currentTtsAudio = null;
         }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+        try {
+            const res = await fetch('/tts/speak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: cleanText, voice: 'male' })
+            });
+            if (res.ok) {
+                const blob = await res.blob();
+                if (blob.size > 0) {
+                    const url = URL.createObjectURL(blob);
+                    currentTtsAudio = new Audio(url);
+                    currentTtsAudio.onended = () => URL.revokeObjectURL(url);
+                    currentTtsAudio.onerror = () => {
+                        URL.revokeObjectURL(url);
+                        speakTextBrowser(cleanText.slice(0, 600), true);
+                    };
+                    await currentTtsAudio.play();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Edge TTS unavailable, using browser voice:', e);
+        }
+        speakTextBrowser(cleanText.slice(0, 600), true);
     }
 
     // ===== File Upload Logic =====
@@ -5060,16 +5267,26 @@
                     custom_instructions: instructions
                 })
             });
-            if (!res.ok) throw new Error("Lỗi khi tạo Podcast");
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || 'Lỗi khi tạo Podcast');
+            }
             const data = await res.json();
-            
-            saveStudioOutput('podcast', data.script);
-            renderStudioOutputDetails({ type: 'podcast', data: data.script });
-            
+            if (!data.success) {
+                throw new Error(data.message || 'Không tạo được podcast');
+            }
+
+            saveStudioOutput('podcast', { script: data.script, audio_url: data.audio_url || null });
+            renderStudioOutputDetails({ type: 'podcast', data: { script: data.script, audio_url: data.audio_url } });
+
             if (data.audio_url) {
                 initBriefingPlayer(data.audio_url);
             }
-            showNotification("Tạo âm thanh Podcast Tóm Tắt thành công!", "success");
+            if (data.tts_warning) {
+                showNotification(data.tts_warning, 'error');
+            } else {
+                showNotification('Tạo Podcast Neural (Lan & Minh) thành công!', 'success');
+            }
         } catch (err) {
             showNotification(err.message, 'error');
         } finally {
@@ -5162,6 +5379,7 @@
         setStudioModalMode(type);
         
         if (type === 'study_guide' || type === 'briefing' || type === 'summary') {
+            window._studioCanvasPayload = { content: data, title: item.title || 'Tài liệu Canvas' };
             const parsed = marked.parse(data);
             content.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-glass); padding-bottom:12px; margin-bottom:20px;">
@@ -5170,7 +5388,7 @@
                     </h2>
                     <div style="display:flex; gap:8px;">
                         <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem;" onclick="addContentToNotes(\`${data.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">📌 Ghim vào ghi chú</button>
-                        <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary);" onclick="closeStudioModal(); openCanvas(\`${data.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`, \`${(item.title||'Canvas').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">🎨 Mở trong Canvas</button>
+                        <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary);" onclick="closeStudioModal(); openCanvasFromStudio()">🎨 Mở trong Canvas</button>
                         <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary);" onclick="copyToClipboard(\`${data.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">📋 Sao chép</button>
                     </div>
                 </div>
@@ -5384,9 +5602,9 @@
                         </div>
                         <div>
                             <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 4px; color: var(--text-primary);">Thảo luận nội dung tài liệu</h3>
-                            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">2 MC ảo: Minh (Nam) và Lan (Nữ)</p>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Lan (nữ · HoaiMy) &amp; Minh (nam · NamMinh) — cùng giọng Neural với player bên dưới</p>
                             <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-                                <span style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 8px; border-radius: 99px; font-weight: 500;">Beta Voice</span>
+                                <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 2px 8px; border-radius: 99px; font-weight: 500;">Neural Voice</span>
                                 <span id="podcastSpeakingHost" style="font-size: 0.8rem; color: #10b981; font-weight: 600;">Sẵn sàng phát...</span>
                             </div>
                         </div>
@@ -5419,9 +5637,14 @@
                 <div style="max-height: 45vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 10px 4px;" id="podcastScriptList"></div>
             `;
             
-            renderPodcastScript(data);
+            const podcastPayload = unwrapPodcastPayload(data);
+            currentPodcastAudioUrl = podcastPayload.audio_url;
+            renderPodcastScript(podcastPayload.script);
+            if (podcastPayload.audio_url) {
+                initBriefingPlayer(podcastPayload.audio_url);
+            }
             window.addPodcastToNotes = () => {
-                const scriptTurns = normalizePodcastScript(data);
+                const scriptTurns = normalizePodcastScript(podcastPayload.script);
                 let text = "🎙️ KỊCH BẢN PODCAST:\n\n";
                 scriptTurns.forEach(turn => {
                     text += `[${turn.speaker}]: ${turn.text}\n\n`;
@@ -5876,8 +6099,25 @@
 
     // ===== Podcast Overview Logic =====
     let currentPodcastScript = [];
+    let currentPodcastAudioUrl = null;
     let currentSpeakerIndex = -1;
     let isPodcastPlaying = false;
+    let podcastCombinedMode = false;
+
+    function podcastHasPerTurnAudio() {
+        return currentPodcastScript.some(t => t.audio_url);
+    }
+
+    function unwrapPodcastPayload(data) {
+        if (Array.isArray(data)) return { script: data, audio_url: null };
+        if (data && typeof data === 'object') {
+            return {
+                script: data.script || data.turns || [],
+                audio_url: data.audio_url || null,
+            };
+        }
+        return { script: [], audio_url: null };
+    }
 
     function getPodcastSpeaker(turn, idx) {
         const rawSpeaker = String((turn && (turn.speaker || turn.host || turn.role)) || '').trim().toLowerCase();
@@ -5904,7 +6144,8 @@
                     ...sourceTurn,
                     host: speaker === 'Lan' ? 'A' : 'B',
                     speaker,
-                    text
+                    text,
+                    audio_url: sourceTurn.audio_url || null,
                 };
             })
             .filter(turn => turn.text);
@@ -5971,37 +6212,109 @@
 
     let currentAudioObj = null;
 
+    function highlightPodcastTurn(idx) {
+        if (idx < 0 || idx >= currentPodcastScript.length) return;
+        currentSpeakerIndex = idx;
+        const turn = currentPodcastScript[idx];
+        const card = document.getElementById(`podcast-turn-${idx}`);
+
+        document.querySelectorAll('.podcast-turn-card').forEach(c => {
+            c.style.transform = 'scale(1)';
+            c.style.boxShadow = 'none';
+        });
+
+        if (card) {
+            card.style.transform = 'scale(1.02)';
+            card.style.boxShadow = turn.speaker === 'Minh'
+                ? '0 0 15px rgba(59,130,246,0.3)'
+                : '0 0 15px rgba(236,72,153,0.3)';
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        const hostLabel = turn.speaker === 'Minh' ? '👨‍💼 Minh đang nói...' : '👩‍💼 Lan đang nói...';
+        const host = document.getElementById('podcastSpeakingHost');
+        if (host) {
+            host.textContent = podcastCombinedMode
+                ? `${hostLabel} (Neural gộp)`
+                : hostLabel;
+        }
+    }
+
+    function playPodcastCombined() {
+        podcastCombinedMode = true;
+        currentSpeakerIndex = 0;
+        highlightPodcastTurn(0);
+
+        if (currentAudioObj) {
+            currentAudioObj.pause();
+            currentAudioObj = null;
+        }
+
+        const speedEl = document.getElementById('podcastSpeed');
+        const speed = speedEl ? parseFloat(speedEl.value) : 1.0;
+        currentAudioObj = new Audio(currentPodcastAudioUrl);
+        currentAudioObj.playbackRate = speed;
+
+        currentAudioObj.ontimeupdate = () => {
+            if (!currentAudioObj?.duration || !isPodcastPlaying) return;
+            const idx = Math.min(
+                currentPodcastScript.length - 1,
+                Math.floor((currentAudioObj.currentTime / currentAudioObj.duration) * currentPodcastScript.length)
+            );
+            if (idx !== currentSpeakerIndex) highlightPodcastTurn(idx);
+        };
+
+        currentAudioObj.onended = () => {
+            podcastCombinedMode = false;
+            stopPodcast();
+            const host = document.getElementById('podcastSpeakingHost');
+            if (host) host.textContent = 'Hoàn tất phát Podcast!';
+        };
+
+        currentAudioObj.onerror = () => {
+            podcastCombinedMode = false;
+            showNotification('Không phát được file Neural — hãy tạo lại podcast.', 'error');
+            stopPodcast();
+        };
+
+        currentAudioObj.play().catch(() => {
+            podcastCombinedMode = false;
+            showNotification('Không phát được file Neural — hãy tạo lại podcast.', 'error');
+            stopPodcast();
+        });
+    }
+
     function playPodcast() {
         if (currentPodcastScript.length === 0) {
             showNotification("Vui lòng biên soạn kịch bản podcast trước!", "error");
             return;
         }
-        
+
         if (isPodcastPlaying) {
             pausePodcast();
             return;
         }
-        
+
         isPodcastPlaying = true;
         document.getElementById('btnPodcastPlay').textContent = '⏸️';
         document.getElementById('podcastDisc').style.animation = 'spin 3s linear infinite';
-        
-        if (currentSpeakerIndex === -1) {
-            currentSpeakerIndex = 0;
-        }
-        
-        if (currentAudioObj && currentAudioObj.paused) {
+
+        if (currentAudioObj && currentAudioObj.paused && currentAudioObj.src) {
             const speedEl = document.getElementById('podcastSpeed');
             const speed = speedEl ? parseFloat(speedEl.value) : 1.0;
             currentAudioObj.playbackRate = speed;
             currentAudioObj.play().catch(e => console.error("Audio resume error:", e));
-            const turn = currentPodcastScript[currentSpeakerIndex];
-            const hostLabel = turn.speaker === 'Minh' ? '👨‍💼 Minh đang nói...' : '👩‍💼 Lan đang nói...';
-            const host = document.getElementById('podcastSpeakingHost');
-            if (host) host.textContent = hostLabel;
-        } else {
-            playPodcastTurn();
+            highlightPodcastTurn(currentSpeakerIndex >= 0 ? currentSpeakerIndex : 0);
+            return;
         }
+
+        if (!podcastHasPerTurnAudio() && currentPodcastAudioUrl) {
+            playPodcastCombined();
+            return;
+        }
+
+        if (currentSpeakerIndex === -1) currentSpeakerIndex = 0;
+        playPodcastTurn();
     }
 
     function pausePodcast() {
@@ -6022,6 +6335,7 @@
 
     function stopPodcast() {
         isPodcastPlaying = false;
+        podcastCombinedMode = false;
         currentSpeakerIndex = -1;
         const btnPlay = document.getElementById('btnPodcastPlay');
         if (btnPlay) btnPlay.textContent = '▶️';
@@ -6056,24 +6370,8 @@
         }
         
         const turn = currentPodcastScript[currentSpeakerIndex];
-        const cardId = `podcast-turn-${currentSpeakerIndex}`;
-        const card = document.getElementById(cardId);
-        
-        document.querySelectorAll('.podcast-turn-card').forEach(c => {
-            c.style.transform = 'scale(1)';
-            c.style.boxShadow = 'none';
-        });
-        
-        if (card) {
-            card.style.transform = 'scale(1.02)';
-            card.style.boxShadow = turn.speaker === 'Minh' ? '0 0 15px rgba(59,130,246,0.3)' : '0 0 15px rgba(236,72,153,0.3)';
-            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-        
-        const hostLabel = turn.speaker === 'Minh' ? '👨‍💼 Minh đang nói...' : '👩‍💼 Lan đang nói...';
-        const host = document.getElementById('podcastSpeakingHost');
-        if (host) host.textContent = hostLabel;
-        
+        highlightPodcastTurn(currentSpeakerIndex);
+
         const speedEl = document.getElementById('podcastSpeed');
         const speed = speedEl ? parseFloat(speedEl.value) : 1.0;
 
@@ -6083,23 +6381,29 @@
             }
             currentAudioObj = new Audio(turn.audio_url);
             currentAudioObj.playbackRate = speed;
-            
+
             currentAudioObj.onended = () => {
                 if (isPodcastPlaying) {
                     currentSpeakerIndex++;
                     playPodcastTurn();
                 }
             };
-            
+
             currentAudioObj.onerror = (e) => {
-                console.error("Audio tag playback error, falling back to synthesis:", e);
-                playSynthesisFallback(turn, speed);
+                console.error("Neural audio playback error:", e);
+                if (isPodcastPlaying) {
+                    currentSpeakerIndex++;
+                    playPodcastTurn();
+                }
             };
-            
+
             currentAudioObj.play().catch(err => {
-                console.error("Audio tag play catch, falling back to synthesis:", err);
-                playSynthesisFallback(turn, speed);
+                console.error("Neural audio play error:", err);
+                showNotification('Không phát được giọng Neural — hãy tạo lại podcast.', 'error');
+                stopPodcast();
             });
+        } else if (currentPodcastAudioUrl) {
+            playPodcastCombined();
         } else {
             playSynthesisFallback(turn, speed);
         }
@@ -6108,21 +6412,15 @@
     function playSynthesisFallback(turn, speed) {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
-            
+
             const utterance = new SpeechSynthesisUtterance(turn.text);
-            if (turn.speaker === 'Minh') {
-                utterance.pitch = 0.85;
-                utterance.rate = 0.95 * speed;
-            } else {
-                utterance.pitch = 1.15;
-                utterance.rate = 1.05 * speed;
-            }
-            
-            const voices = window.speechSynthesis.getVoices();
-            const viVoice = voices.find(v => v.lang.startsWith('vi'));
-            if (viVoice) {
-                utterance.voice = viVoice;
-            }
+            const isMinh = turn.speaker === 'Minh';
+            utterance.lang = 'vi-VN';
+            utterance.pitch = isMinh ? 0.94 : 1.0;
+            utterance.rate = (isMinh ? 0.96 : 1.0) * speed;
+
+            const voice = pickBrowserViVoice(isMinh);
+            if (voice) utterance.voice = voice;
             
             utterance.onend = () => {
                 if (isPodcastPlaying) {
@@ -6159,9 +6457,8 @@
     }
 
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = () => {
-            window.speechSynthesis.getVoices();
-        };
+        window.speechSynthesis.onvoiceschanged = loadViVoices;
+        loadViVoices();
     }
 
     // ===== Audio Briefing Player Helpers =====

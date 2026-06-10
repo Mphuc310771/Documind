@@ -3,10 +3,11 @@ import json
 import logging
 import uuid
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Header
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from app.core.config import settings
 from app.infrastructure.auth import hash_password, verify_password, create_token, decode_token
-from app.domain.models import QueryRequest, SynthesizeNotesRequest, StudioGenerateRequest, PodcastGenerateRequest, SlideGenerateRequest, UploadURLRequest, NotebookCreateRequest, ChatMessageRequest, CanvasEditRequest, AuthRequest, QuickSummarizeRequest
+from app.domain.models import QueryRequest, SynthesizeNotesRequest, StudioGenerateRequest, PodcastGenerateRequest, SlideGenerateRequest, UploadURLRequest, NotebookCreateRequest, ChatMessageRequest, CanvasEditRequest, AuthRequest, QuickSummarizeRequest, TtsSpeakRequest
+from app.infrastructure.tts_adapter import synthesize_speech, clean_tts_text
 from app.application.podcast_usecase import PodcastUseCase
 from app.application.synthesis_usecase import SynthesisUseCase
 from app.application.studio_usecase import StudioUseCase
@@ -460,6 +461,25 @@ def canvas_edit(request: CanvasEditRequest):
     except Exception as e:
         logger.error(f"Canvas edit failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Lỗi chỉnh sửa Canvas: {str(e)}")
+
+
+@router.post("/tts/speak")
+async def tts_speak(request: TtsSpeakRequest):
+    """Neural Vietnamese TTS (NamMinh / HoaiMy) — natural voice for chat read-aloud."""
+    clean = clean_tts_text(request.text)
+    if not clean:
+        raise HTTPException(status_code=400, detail="Không có nội dung để đọc.")
+    voice_key = request.voice if request.voice in ("male", "female") else "male"
+    try:
+        audio = await synthesize_speech(clean, voice_key)
+        if not audio:
+            raise HTTPException(status_code=502, detail="Không tạo được audio.")
+        return Response(content=audio, media_type="audio/mpeg")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"TTS failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Lỗi đọc văn bản: {str(e)}")
 
 
 @router.get("/chat-history")

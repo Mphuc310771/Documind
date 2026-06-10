@@ -198,21 +198,24 @@ class TestDistributedRAGHub(unittest.TestCase):
         
         import asyncio
         from unittest.mock import AsyncMock
-        
+
         from app.application.podcast_usecase import PodcastUseCase
         use_case = PodcastUseCase(vector_store=mock_store, llm_service=mock_llm)
-        
-        with patch("edge_tts.Communicate") as mock_comm:
-            mock_comm_inst = MagicMock()
-            mock_comm_inst.save = AsyncMock()
-            mock_comm.return_value = mock_comm_inst
-            
+
+        async def fake_tts(text, filepath, voice_key="A"):
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, "wb") as f:
+                f.write(b"fake-mp3")
+            return True
+
+        with patch("app.application.podcast_usecase.synthesize_to_file", side_effect=fake_tts):
             res = asyncio.run(use_case.execute())
         
         self.assertTrue(res["success"])
         self.assertEqual(len(res["script"]), 1)
         self.assertEqual(res["script"][0]["host"], "A")
         self.assertEqual(res["script"][0]["text"], "Hello world")
+        self.assertIn("audio_url", res)
 
     def test_synthesis_use_case(self):
         """
