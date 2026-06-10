@@ -18,6 +18,26 @@ HOST_TAG_RE = re.compile(
     re.IGNORECASE,
 )
 
+HOST_AB_REPLACEMENTS = (
+    (re.compile(r"\bHost\s*B\b", re.I), "Minh"),
+    (re.compile(r"\bHost\s*A\b", re.I), "Lan"),
+    (re.compile(r"\bMC\s*B\b", re.I), "Minh"),
+    (re.compile(r"\bMC\s*A\b", re.I), "Lan"),
+    (re.compile(r"\bNgười dẫn\s*B\b", re.I), "Minh"),
+    (re.compile(r"\bNgười dẫn\s*A\b", re.I), "Lan"),
+)
+
+
+def sanitize_podcast_dialogue(text: str) -> str:
+    """Replace awkward Host A/B labels with natural names Lan & Minh."""
+    if not text:
+        return ""
+    for pattern, repl in HOST_AB_REPLACEMENTS:
+        text = pattern.sub(repl, text)
+    text = re.sub(r"\bLan\s+Lan\b", "Lan", text, flags=re.I)
+    text = re.sub(r"\bMinh\s+Minh\b", "Minh", text, flags=re.I)
+    return text.strip()
+
 
 def clean_tts_text(text: str) -> str:
     text = re.sub(r"<[^>]+>", " ", text or "")

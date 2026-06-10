@@ -6,7 +6,7 @@ import uuid
 import asyncio
 from app.domain.interfaces import ILLMService
 from app.infrastructure.vector_store import ChromaDBStore
-from app.infrastructure.tts_adapter import clean_tts_text, host_to_voice_key, synthesize_to_file
+from app.infrastructure.tts_adapter import clean_tts_text, host_to_voice_key, synthesize_to_file, sanitize_podcast_dialogue
 
 logger = logging.getLogger(__name__)
 
@@ -47,20 +47,22 @@ class AudioBriefingUseCase:
             context = context[:15000]
 
         prompt = (
-            "Bạn là biên kịch cho một chương trình Podcast đối thoại trực tuyến nổi tiếng gọi là 'AI Podcast Briefing'.\n"
-            "Hãy tạo một kịch bản thảo luận cực kỳ sôi nổi, cuốn hút và dễ hiểu bằng tiếng Việt giữa hai người dẫn chương trình: "
-            "Host A (Giọng nữ, năng động, kết nối khán giả) và Host B (Giọng nam, thông thái, phân tích sâu, trầm ấm).\n"
-            "Họ sẽ thảo luận, phân tích và chia sẻ về các tài liệu được cung cấp dưới đây.\n"
-            "Kịch bản phải gồm khoảng 6 đến 10 lượt hội thoại xen kẽ giữa Host A và Host B.\n"
-            "Mỗi lượt thoại ngắn gọn (2-4 câu, dưới 500 ký tự), không dùng emoji, không markdown.\n"
-            "Bắt buộc trả về kết quả dưới dạng một mảng JSON các đối tượng. Mỗi đối tượng có hai trường: "
-            "'host' (chỉ nhận giá trị 'A' hoặc 'B') và 'text' (nội dung đối thoại).\n"
+            "Bạn là biên kịch podcast tiếng Việt cho chương trình 'DocuMind Podcast'.\n"
+            "Hai người dẫn có tên thật: **Lan** (nữ, năng động, gần gũi khán giả) và **Minh** (nam, bình tĩnh, phân tích sâu).\n"
+            "Họ thảo luận tự nhiên về tài liệu được cung cấp.\n"
+            "Kịch bản gồm 6–10 lượt thoại xen kẽ Lan và Minh.\n\n"
+            "QUY TẮC XƯNG HÔ (bắt buộc):\n"
+            "- Trong trường 'text', gọi nhau bằng tên: 'Minh', 'Lan', 'anh Minh', 'chị Lan' — tự nhiên như bạn bè đồng nghiệp.\n"
+            "- Gọi khán giả: 'các bạn', 'mọi người'.\n"
+            "- TUYỆT ĐỐI KHÔNG viết: Host A, Host B, MC A, MC B, Người dẫn A/B.\n"
+            "- Không emoji, không markdown, mỗi lượt 2–4 câu (dưới 450 ký tự).\n\n"
+            "Trả về JSON array. Mỗi phần tử: 'host' ('A' = Lan, 'B' = Minh) và 'text' (lời thoại).\n"
             "Ví dụ:\n"
             "[\n"
-            "  {\"host\": \"A\", \"text\": \"Chào bạn nghe đài! Hôm nay chúng ta sẽ tìm hiểu về một chủ đề rất hay...\"},\n"
-            "  {\"host\": \"B\", \"text\": \"Chào bạn! Đúng vậy, tài liệu này có nhiều điểm vô cùng sâu sắc...\"}\n"
+            "  {\"host\": \"A\", \"text\": \"Chào các bạn! Mình là Lan. Hôm nay mình và Minh sẽ cùng tìm hiểu một chủ đề thú vị từ tài liệu này.\"},\n"
+            "  {\"host\": \"B\", \"text\": \"Chào Lan, chào mọi người! Đúng vậy, khi đọc kỹ mình thấy có vài điểm rất đáng bàn...\"}\n"
             "]\n"
-            "Không thêm bất kỳ chữ nào ngoài mã JSON trên, không dùng ký tự định dạng markdown ```json."
+            "Chỉ trả JSON, không markdown, không giải thích thêm."
         )
 
         if custom_instructions:
@@ -113,9 +115,10 @@ class AudioBriefingUseCase:
                 host_val = item.get("host", item.get("speaker", "A"))
                 if host_val not in ("A", "B"):
                     host_val = "A" if str(host_val).lower() in ("lan", "a", "female", "nữ", "nu") else "B"
-                text_val = clean_tts_text(item.get("text", ""))
+                text_val = clean_tts_text(sanitize_podcast_dialogue(item.get("text", "")))
                 if text_val:
-                    final_script.append({"host": host_val, "text": text_val})
+                    speaker = "Lan" if host_val == "A" else "Minh"
+                    final_script.append({"host": host_val, "speaker": speaker, "text": text_val})
 
             if not final_script:
                 return {

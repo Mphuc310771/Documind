@@ -6119,6 +6119,18 @@
         return { script: [], audio_url: null };
     }
 
+    function sanitizePodcastDialogue(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/\bHost\s*B\b/gi, 'Minh')
+            .replace(/\bHost\s*A\b/gi, 'Lan')
+            .replace(/\bMC\s*B\b/gi, 'Minh')
+            .replace(/\bMC\s*A\b/gi, 'Lan')
+            .replace(/\bNgười dẫn\s*B\b/gi, 'Minh')
+            .replace(/\bNgười dẫn\s*A\b/gi, 'Lan')
+            .trim();
+    }
+
     function getPodcastSpeaker(turn, idx) {
         const rawSpeaker = String((turn && (turn.speaker || turn.host || turn.role)) || '').trim().toLowerCase();
         if (['minh', 'b', 'host b', 'nam', 'male', 'man'].includes(rawSpeaker)) return 'Minh';
@@ -6133,12 +6145,12 @@
                 if (typeof turn === 'string') {
                     return {
                         speaker: getPodcastSpeaker(null, idx),
-                        text: turn.trim()
+                        text: sanitizePodcastDialogue(turn.trim())
                     };
                 }
 
                 const sourceTurn = turn && typeof turn === 'object' ? turn : {};
-                const text = String(sourceTurn.text || sourceTurn.content || sourceTurn.message || '').trim();
+                const text = sanitizePodcastDialogue(String(sourceTurn.text || sourceTurn.content || sourceTurn.message || '').trim());
                 const speaker = getPodcastSpeaker(sourceTurn, idx);
                 return {
                     ...sourceTurn,
@@ -6188,7 +6200,7 @@
             const align = turn.speaker === 'Minh' ? 'flex-start' : 'flex-end';
             const bg = turn.speaker === 'Minh' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(236, 72, 153, 0.15)';
             const border = turn.speaker === 'Minh' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(236, 72, 153, 0.3)';
-            const avatar = turn.speaker === 'Minh' ? '👨‍💼 [Minh]' : '👩‍💼 [Lan]';
+            const avatar = turn.speaker === 'Minh' ? '👨‍💼 Minh' : '👩‍💼 Lan';
             const avatarColor = turn.speaker === 'Minh' ? '#60a5fa' : '#f472b6';
             
             card.style.background = bg;
