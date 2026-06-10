@@ -1,4 +1,4 @@
-# NBLM Research
+# DocuMind Workspace
 
 > A self-hosted NotebookLM-style research workspace: RAG chat over your own documents, data analysis, knowledge graphs, podcasts and cinematic slides — in one FastAPI app.
 

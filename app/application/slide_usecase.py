@@ -95,8 +95,8 @@ class SlideGeneratorUseCase:
             "Transform the supplied context into a polished, boardroom-ready presentation.\n\n"
             "Return ONLY a valid JSON array. Do not include markdown fences, comments, or explanatory text.\n"
             f"The JSON array MUST contain exactly {num_slides} slide objects. This count is mandatory.\n"
-            f"Use ONLY these layout values: {layouts}\n"
-            f"Recommended layout sequence for this deck: {json.dumps(recommended_sequence)}\n\n"
+            f"Use ONLY these layout values: {layouts}\n\n"
+            "Choose the most appropriate layout for each slide based on the content it represents. For example, use DATA_METRICS when showing statistics or numbers, ARCHITECTURE_TWO_COLUMN when describing technical components or flows, and EXECUTIVE_SUMMARY for concepts or summaries. Do not just blindly repeat a fixed layout sequence; select layouts dynamically to create a well-structured narrative.\n\n"
             "Each slide object MUST contain exactly these keys:\n"
             "- layout: one of COVER, EXECUTIVE_SUMMARY, ARCHITECTURE_TWO_COLUMN, DATA_METRICS, CONCLUSION.\n"
             "- title: concise professional headline, maximum 8 words.\n"
@@ -105,14 +105,12 @@ class SlideGeneratorUseCase:
             "- visual_prompt: concrete visual direction for a modern dark enterprise SaaS deck.\n\n"
             "Slide content rules:\n"
             "- Slide 1 must use COVER. The final slide must use CONCLUSION.\n"
-            "- Use EXECUTIVE_SUMMARY, ARCHITECTURE_TWO_COLUMN, and DATA_METRICS repeatedly as middle-slide templates when more than 5 slides are requested.\n"
             "- COVER: 2-3 strategic subtitle bullets.\n"
-            "- EXECUTIVE_SUMMARY: exactly 4 bullets, each maximum 12 words.\n"
-            "- ARCHITECTURE_TWO_COLUMN: exactly 2 bullets formatted as 'Left label: insight' and 'Right label: insight'.\n"
-            "- DATA_METRICS: exactly 4 bullets formatted as 'Metric label: VALUE | short implication', where VALUE "
-            "is a SHORT quantitative token only (e.g. '3x', '95%', '40%', '5', '24/7') — never a sentence. "
-            "Prefer real numbers from the context; the value is shown as a large headline number.\n"
-            "- CONCLUSION: exactly 3 action-oriented bullets, each maximum 12 words.\n"
+            "- EXECUTIVE_SUMMARY: 2 to 4 key insight bullets (each maximum 12 words) summarizing main concepts. Be concise and content-focused.\n"
+            "- ARCHITECTURE_TWO_COLUMN: 2 to 3 architectural component bullets formatted as 'Left label: insight or Component: description' representing system flow. Capped at 3 components.\n"
+            "- DATA_METRICS: 2 to 4 metric bullets formatted as 'Metric label: VALUE | short implication', where VALUE "
+            "is a SHORT quantitative token (e.g. '3x', '95%', '40%', '5', '24/7') — never a sentence. Prefer real numbers from the context. Capped at 4 metrics.\n"
+            "- CONCLUSION: 2 to 3 action-oriented path-forward bullets, each maximum 12 words.\n"
             "- Write in the same language as the strongest user/document context.\n"
             "- Use concrete claims grounded in the context. Avoid filler and generic advice.\n\n"
             "Output shape example:\n"
@@ -130,10 +128,15 @@ class SlideGeneratorUseCase:
     @staticmethod
     def _clean_json_response(raw_response: str) -> str:
         cleaned = raw_response.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
-        if cleaned.endswith("```"):
-            cleaned = re.sub(r"\n?```$", "", cleaned)
+        start_idx = cleaned.find('[')
+        end_idx = cleaned.rfind(']')
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            cleaned = cleaned[start_idx:end_idx+1]
+        else:
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
+            if cleaned.endswith("```"):
+                cleaned = re.sub(r"\n?```$", "", cleaned)
         return cleaned.strip()
 
     @staticmethod
@@ -216,19 +219,18 @@ class SlideGeneratorUseCase:
             items = [self._short_text(value, "", max_words=16)]
 
         items = [item for item in items if item]
-        required_counts = {
-            "COVER": 3,
-            "EXECUTIVE_SUMMARY": 4,
-            "ARCHITECTURE_TWO_COLUMN": 2,
-            "DATA_METRICS": 4,
-            "CONCLUSION": 3,
+        max_counts = {
+            "COVER": 4,
+            "EXECUTIVE_SUMMARY": 6,
+            "ARCHITECTURE_TWO_COLUMN": 4,
+            "DATA_METRICS": 6,
+            "CONCLUSION": 4,
         }
-        required = required_counts[layout]
+        limit = max_counts.get(layout, 4)
 
-        merged = (items + fallback)[:required]
-        while len(merged) < required:
-            merged.append(fallback[len(merged) % len(fallback)])
-        return merged
+        if not items:
+            return fallback[:limit]
+        return items[:limit]
 
     @staticmethod
     def _clamp_metric_token(value: str) -> str:
@@ -236,17 +238,20 @@ class SlideGeneratorUseCase:
         text = re.sub(r"\s+", " ", (value or "").strip())
         if not text:
             return "—"
+        
+        # Try to find a numeric value with its optional suffix/units or key labels
         match = re.search(
-            r"(\d+(?:[.,]\d+)?\s*%|\d+(?:[.,]\d+)?\s*x|24/7|low|medium|high|cao|thấp|trung bình)",
+            r"(24/7|\d+(?:[.,]\d+)?\s*(?:%|x|tỷ|triệu|k|M|B|USD|đ|fps|req/s|s|trang)?(?:\s+đồng|\s+USD)?|low|medium|high|cao|thấp|trung bình)",
             text,
             re.IGNORECASE,
         )
         if match:
             return match.group(1).strip()
+            
         words = text.split()
         if len(words) <= 3:
             return text[:20]
-        return words[0][:16]
+        return " ".join(words[:2])[:16]
 
     def _sanitize_metric_bullets(self, content: list[str]) -> list[str]:
         cleaned: list[str] = []
@@ -278,6 +283,100 @@ class SlideGeneratorUseCase:
         return text
 
     def _fallback_slide(self, layout: str, index: int, context: str, total: int) -> dict[str, Any]:
+        # Try to build a dynamic fallback from context if available
+        try:
+            if context and len(context.strip()) > 50:
+                cleaned_context = re.sub(
+                    r"^(CURRENT CHAT CONVERSATION HISTORY:|UPLOADED DOCUMENT CONTEXT:)", 
+                    "", 
+                    context, 
+                    flags=re.IGNORECASE
+                ).strip()
+                
+                # Split into non-empty lines
+                lines = [line.strip() for line in cleaned_context.split("\n") if len(line.strip()) > 15]
+                
+                if len(lines) >= 3:
+                    section_no = index + 1
+                    kicker = f"NỘI DUNG {section_no:02d}"
+                    
+                    # Select lines based on index to ensure slides are different
+                    line_idx = (index * 2) % len(lines)
+                    content_lines = []
+                    for i in range(4):
+                        idx = (line_idx + i) % len(lines)
+                        content_lines.append(lines[idx])
+                        
+                    # Derive a slide title from the selected line
+                    title_line = content_lines[0]
+                    words = title_line.split()
+                    title = " ".join(words[:6]).rstrip(".,;:-")
+                    if len(title) < 8:
+                        title = f"Phân tích chuyên sâu {section_no:02d}"
+                        
+                    if layout == "COVER":
+                        topic = self._derive_topic(context)
+                        return {
+                            "title": topic,
+                            "kicker": "BÁO CÁO",
+                            "content": [line[:60] for line in content_lines[:3]],
+                            "visual_prompt": "Dark enterprise SaaS hero with luminous data network",
+                        }
+                    elif layout == "CONCLUSION":
+                        return {
+                            "title": "Kết luận & Định hướng",
+                            "kicker": f"SLIDE {total:02d}",
+                            "content": [line[:60] for line in content_lines[:3]],
+                            "visual_prompt": "Executive conclusion slide with luminous roadmap path",
+                        }
+                    elif layout == "DATA_METRICS":
+                        metric_bullets = []
+                        for idx, line in enumerate(content_lines[:4]):
+                            # Look for any numbers
+                            num_match = re.search(r'(\d+(?:[.,]\d+)?\s*%?|\d+\s*x)', line)
+                            if num_match:
+                                val = num_match.group(1)
+                                label = line.replace(val, "").replace(":", "").strip()
+                                lbl_words = label.split()
+                                lbl = " ".join(lbl_words[:2]) or "Chỉ số"
+                                metric_bullets.append(f"{lbl}: {val} | {line[:60]}")
+                            else:
+                                lbl_words = line.split()
+                                lbl = " ".join(lbl_words[:2]) or "Thông tin"
+                                metric_bullets.append(f"{lbl}: 0{idx+1} | {line[:60]}")
+                        return {
+                            "title": title,
+                            "kicker": kicker,
+                            "content": metric_bullets,
+                            "visual_prompt": "KPI wall with cyber-lime numbers and trend lines",
+                        }
+                    elif layout == "ARCHITECTURE_TWO_COLUMN":
+                        arch_bullets = []
+                        for line in content_lines[:2]:
+                            parts = line.split(":", 1)
+                            if len(parts) == 2:
+                                arch_bullets.append(f"{parts[0][:15]}: {parts[1][:60]}")
+                            else:
+                                lbl_words = line.split()
+                                label = " ".join(lbl_words[:2]) or "Thành phần"
+                                desc = " ".join(lbl_words[2:10]) or line[:50]
+                                arch_bullets.append(f"{label}: {desc}")
+                        return {
+                            "title": title,
+                            "kicker": kicker,
+                            "content": arch_bullets,
+                            "visual_prompt": "Two-column technical architecture layout",
+                        }
+                    else: # EXECUTIVE_SUMMARY
+                        return {
+                            "title": title,
+                            "kicker": kicker,
+                            "content": [line[:70] for line in content_lines[:4]],
+                            "visual_prompt": "Four executive insight cards on dark glass dashboard",
+                        }
+        except Exception as e:
+            logger.warning(f"Failed to generate dynamic fallback slide: {e}. Falling back to static templates.")
+
         topic = self._derive_topic(context)
         section_no = index + 1
         middle_variants = [

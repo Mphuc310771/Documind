@@ -130,9 +130,9 @@ class AudioBriefingUseCase:
             os.makedirs("app/static/outputs", exist_ok=True)
             temp_files = []
             
-            # Map voices: Host A -> vi-VN-HoaiAnNeural, Host B -> vi-VN-NamMinhNeural
+            # Map voices: Host A -> vi-VN-HoaiMyNeural, Host B -> vi-VN-NamMinhNeural
             voice_map = {
-                "A": "vi-VN-HoaiAnNeural",
+                "A": "vi-VN-HoaiMyNeural",
                 "B": "vi-VN-NamMinhNeural"
             }
 
@@ -143,7 +143,7 @@ class AudioBriefingUseCase:
                     clean_text = text
                 
                 host = turn.get("host", "A")
-                voice = voice_map.get(host, "vi-VN-HoaiAnNeural")
+                voice = voice_map.get(host, "vi-VN-HoaiMyNeural")
                 temp_filename = f"temp_briefing_turn_{idx}.mp3"
                 temp_filepath = os.path.join("app/static/outputs", temp_filename)
                 

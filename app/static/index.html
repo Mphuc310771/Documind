@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="NBLM Research — Không gian nghiên cứu AI: RAG, URL/YouTube, slide điện ảnh, podcast và Intelligence Suite.">
-    <title>NBLM Research</title>
+    <meta name="description" content="DocuMind Workspace — Không gian nghiên cứu AI: RAG, URL/YouTube, slide điện ảnh, podcast và Intelligence Suite.">
+    <title>DocuMind Workspace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -58,6 +58,7 @@
             --accent-light: #e6ffbb;
             --accent-glow: rgba(222, 255, 154, 0.22);
             --accent-gradient: linear-gradient(135deg, #deff9a 0%, #10b981 100%);
+            --accent2: #10b981;
             --success: #10b981;
             --success-bg: rgba(16, 185, 129, 0.1);
             --error: #ef4444;
@@ -100,6 +101,7 @@
             --accent-light: #047857;
             --accent-glow: rgba(16, 185, 129, 0.12);
             --accent-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --accent2: #047857;
             --success: #059669;
             --success-bg: rgba(5, 150, 105, 0.1);
             --error: #dc2626;
@@ -627,6 +629,7 @@
             background: rgba(255, 255, 255, 0.015);
             position: relative;
             overflow: hidden;
+            flex-shrink: 0;
         }
         .drop-zone::before {
             content: '';
@@ -773,6 +776,137 @@
             display: flex; align-items: center; justify-content: space-between;
         }
         .studio-header h3 { font-size: 1.15rem; font-weight: 800; letter-spacing: 0; }
+
+        /* GraphRAG knowledge graph */
+        .graphrag-layout {
+            display: grid;
+            grid-template-columns: 1fr 272px;
+            gap: 14px;
+            min-height: 680px;
+        }
+        @media (max-width: 960px) {
+            .graphrag-layout { grid-template-columns: 1fr; }
+            .graphrag-detail-panel { max-height: 320px; height: auto !important; }
+        }
+        .graphrag-canvas {
+            height: min(680px, 68vh);
+            min-height: 520px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius);
+            position: relative;
+        }
+        [data-theme="light"] .graphrag-canvas {
+            background: #f8fafc;
+            border-color: rgba(15, 23, 42, 0.12);
+        }
+        .graphrag-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .graphrag-legend-chip {
+            padding: 4px 10px;
+            border-radius: 99px;
+            border: 1px solid color-mix(in srgb, var(--chip, #94a3b8) 55%, transparent);
+            background: color-mix(in srgb, var(--chip, #94a3b8) 14%, transparent);
+            color: var(--text-primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .graphrag-legend-chip:hover { transform: translateY(-1px); filter: brightness(1.08); }
+        .graphrag-legend-all { --chip: #deff9a; }
+        .graphrag-detail-panel {
+            height: min(680px, 68vh);
+            min-height: 520px;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius);
+        }
+        .graphrag-detail-empty {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            padding: 12px 4px;
+        }
+        .graphrag-detail-card { margin-bottom: 14px; }
+        .graphrag-detail-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 99px;
+            border: 1px solid;
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 8px;
+        }
+        .graphrag-detail-title {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.25;
+        }
+        .graphrag-detail-desc {
+            margin: 0 0 10px;
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: var(--text-secondary);
+        }
+        .graphrag-detail-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+        .graphrag-detail-section { margin-top: 12px; }
+        .graphrag-detail-heading {
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .graphrag-edge-row {
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            border-radius: 10px;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-glass);
+            cursor: pointer;
+            font-size: 0.84rem;
+            line-height: 1.45;
+            transition: var(--transition);
+        }
+        .graphrag-edge-row:hover {
+            border-color: rgba(222, 255, 154, 0.35);
+            background: var(--accent-glow);
+        }
+        .graphrag-edge-arrow { color: #deff9a; font-weight: 900; margin-right: 4px; }
+        .graphrag-edge-label { color: var(--text-secondary); font-weight: 600; }
+        .graphrag-edge-target { display: block; margin-top: 2px; color: var(--text-primary); font-weight: 700; }
+        .graphrag-edge-detail {
+            margin-top: 4px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        div.vis-tooltip {
+            white-space: pre-line;
+            max-width: 300px;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            padding: 10px 14px;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
         .studio-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -848,6 +982,12 @@
             border-radius: var(--radius); width: 90%; max-width: 820px;
             max-height: 85vh; overflow-y: auto; padding: 36px;
             box-shadow: var(--shadow-lg); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .studio-modal.studio-modal--graphrag {
+            width: 96%;
+            max-width: 1240px;
+            max-height: 92vh;
+            padding: 28px 32px 32px;
         }
         .studio-modal-close {
             float: right; background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); 
@@ -1164,6 +1304,38 @@
             box-shadow: none;
         }
 
+        /* Toolbar Button component for premium control bars */
+        .toolbar-btn {
+            background: var(--control-bg);
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition);
+        }
+        .toolbar-btn:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-hover);
+            color: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+        .toolbar-btn.primary {
+            background: var(--accent-gradient);
+            color: var(--button-contrast);
+            border: none;
+        }
+        .toolbar-btn.primary:hover {
+            filter: brightness(1.15);
+            transform: translateY(-1px);
+        }
+
         /* Quiz UI Elements */
         .quiz-container {
             display: flex;
@@ -1366,6 +1538,9 @@
             height: 170px;
             cursor: pointer;
         }
+        .flashcard:hover .flashcard-inner {
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+        }
         .flashcard-inner {
             position: relative;
             width: 100%;
@@ -1385,80 +1560,268 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 24px 20px;
             border-radius: var(--radius-sm);
             border: 1px solid var(--border-glass);
             box-shadow: var(--shadow);
         }
+        /* Top badge for Q/A label */
+        .flashcard-front::before, .flashcard-back::before {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
         .flashcard-front {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(5, 8, 16, 0.98) 100%);
+            background: var(--bg-card);
             color: var(--text-primary);
-            font-weight: 700;
+            font-weight: 600;
             font-size: 0.92rem;
-            border-color: rgba(222, 255, 154, 0.2);
+            border: 1px solid var(--border-glass);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+        .flashcard-front::before {
+            content: "CÂU HỎI";
+            background: var(--bg-glass);
+            color: var(--text-muted);
+            border: 1px solid var(--border-glass);
+        }
+        .flashcard-front,
+        .flashcard-front *,
+        .flashcard-front p,
+        .flashcard-front span,
+        .flashcard-front strong,
+        .flashcard-front em {
+            color: var(--text-primary) !important;
         }
         .flashcard-back {
             background: var(--accent-gradient);
             color: var(--button-contrast);
             transform: rotateY(180deg);
             font-size: 0.88rem;
-            font-weight: 700;
+            font-weight: 600;
             overflow-y: auto;
-            border-color: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 0 15px rgba(222, 255, 154, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: var(--shadow-sm);
+        }
+        .flashcard-back::before {
+            content: "ĐÁP ÁN";
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--button-contrast);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .flashcard-back,
+        .flashcard-back *,
+        .flashcard-back p,
+        .flashcard-back span,
+        .flashcard-back strong,
+        .flashcard-back em {
+            color: var(--button-contrast) !important;
+        }
+
+        /* ===== Mermaid Mindmap Premium Styling ===== */
+        .mermaid svg {
+            background: transparent !important;
+            font-family: 'Outfit', 'Inter', sans-serif !important;
+        }
+        
+        /* Whiteboard White Grid Background for Mindmap Viewport */
+        #mindmapViewport {
+            background: 
+                linear-gradient(var(--bg-grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
+                var(--bg-card) !important;
+            background-size: 30px 30px !important;
+        }
+
+        /* Default Node styling fallback */
+        .mermaid .node rect,
+        .mermaid .node circle,
+        .mermaid .node polygon,
+        .mermaid .node path {
+            fill: var(--bg-card) !important;
+            stroke: var(--accent) !important;
+            stroke-width: 1.5px !important;
+            rx: 8px !important;
+            ry: 8px !important;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15)) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        /* Root Node (Level 0) */
+        .mermaid .rootNode rect,
+        .mermaid .rootNode circle,
+        .mermaid .rootNode polygon,
+        .mermaid .rootNode path {
+            fill: var(--accent) !important;
+            stroke: var(--accent) !important;
+            stroke-width: 2.5px !important;
+            filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent)) !important;
+        }
+        .mermaid .rootNode .label text,
+        .mermaid .rootNode text {
+            fill: var(--button-contrast) !important;
+            font-weight: 800 !important;
+            font-size: 0.95rem !important;
+        }
+
+        /* Branch Node (Level 1) */
+        .mermaid .branchNode rect,
+        .mermaid .branchNode circle,
+        .mermaid .branchNode polygon,
+        .mermaid .branchNode path {
+            fill: var(--control-bg) !important;
+            stroke: var(--accent2) !important;
+            stroke-width: 1.8px !important;
+        }
+        .mermaid .branchNode .label text,
+        .mermaid .branchNode text {
+            fill: var(--text-primary) !important;
+            font-weight: 700 !important;
+            font-size: 0.88rem !important;
+        }
+
+        /* Leaf Node (Level 2+) */
+        .mermaid .leafNode rect,
+        .mermaid .leafNode circle,
+        .mermaid .leafNode polygon,
+        .mermaid .leafNode path {
+            fill: var(--bg-glass) !important;
+            stroke: var(--border-glass) !important;
+            stroke-width: 1px !important;
+        }
+        .mermaid .leafNode .label text,
+        .mermaid .leafNode text {
+            fill: var(--text-secondary) !important;
+            font-weight: 400 !important;
+            font-size: 0.82rem !important;
+        }
+
+        /* Hover states */
+        .mermaid .node:hover rect,
+        .mermaid .node:hover circle,
+        .mermaid .node:hover polygon,
+        .mermaid .node:hover path {
+            filter: drop-shadow(0 6px 16px color-mix(in srgb, var(--accent) 30%, transparent)) !important;
+            stroke-width: 2.5px !important;
+        }
+
+        .mermaid .edgePath .path {
+            stroke: var(--border-hover) !important;
+            stroke-width: 1.5px !important;
+            stroke-dasharray: 4, 4 !important;
+            animation: edgeFlow 30s linear infinite !important;
+            opacity: 0.6;
+        }
+        @keyframes edgeFlow {
+            from { stroke-dashoffset: 200; }
+            to { stroke-dashoffset: 0; }
+        }
+        .mermaid .edgeLabel rect {
+            fill: var(--bg-card) !important;
+            rx: 4px !important;
+        }
+        .mermaid .label {
+            color: var(--text-primary) !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 0.85rem !important;
+        }
+        .mermaid .label text {
+            fill: var(--text-primary) !important;
+        }
+        .mermaid .edgePath .arrowheadPath {
+            fill: var(--accent2) !important;
+            stroke: var(--accent2) !important;
         }
         .faq-list {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px;
             margin-top: 18px;
         }
-        .faq-item {
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
+        /* FAQ luôn nền sáng — dễ đọc trong modal Studio */
+        .studio-modal .faq-item {
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            border-radius: 12px;
             overflow: hidden;
-            background: rgba(10, 16, 32, 0.4);
+            background: #ffffff;
             transition: var(--transition);
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
         }
-        .faq-item:hover {
-            border-color: rgba(222, 255, 154, 0.25);
-            background: rgba(10, 16, 32, 0.6);
+        .studio-modal .faq-item:hover {
+            border-color: rgba(16, 185, 129, 0.35);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.1);
         }
-        .faq-question {
-            padding: 16px 20px;
+        .studio-modal .faq-item.active {
+            border-color: rgba(16, 185, 129, 0.5);
+            box-shadow: 0 4px 18px rgba(16, 185, 129, 0.12);
+        }
+        .studio-modal .faq-question {
+            padding: 14px 18px;
             font-weight: 700;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             user-select: none;
-            background: rgba(10, 16, 32, 0.5);
+            background: #f1f5f9;
+            color: #0f172a;
             font-size: 0.94rem;
+            line-height: 1.45;
             transition: var(--transition);
         }
-        .faq-question::after {
+        .studio-modal .faq-question p,
+        .studio-modal .faq-answer p {
+            margin: 0;
+            color: inherit;
+            background: transparent;
+        }
+        .studio-modal .faq-item.active .faq-question {
+            background: rgba(16, 185, 129, 0.12);
+            color: #0f172a;
+        }
+        .studio-modal .faq-question::after {
             content: '▼';
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            transition: transform 0.2s;
+            flex-shrink: 0;
+            font-size: 0.7rem;
+            color: #64748b;
+            transition: transform 0.2s, color 0.2s;
         }
-        .faq-item.active .faq-question::after {
+        .studio-modal .faq-item.active .faq-question::after {
             transform: rotate(180deg);
-            color: var(--accent-light);
+            color: #059669;
         }
-        .faq-answer {
+        .studio-modal .faq-answer {
             max-height: 0;
             overflow: hidden;
-            padding: 0 20px;
-            color: var(--text-secondary);
-            transition: max-height 0.2s ease-out, padding 0.2s;
+            padding: 0 18px;
+            color: #334155;
+            background: #ffffff;
+            transition: max-height 0.25s ease-out, padding 0.2s;
             font-size: 0.88rem;
-            line-height: 1.6;
+            line-height: 1.65;
         }
-        .faq-item.active .faq-answer {
+        .studio-modal .faq-item.active .faq-answer {
             max-height: 600px;
-            padding: 16px 20px;
-            border-top: 1px solid var(--border-glass);
+            padding: 14px 18px 16px;
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+            background: #ffffff;
+            color: #334155;
+        }
+        .studio-modal .faq-answer strong {
+            color: #0f172a;
+        }
+        .studio-modal .faq-panel {
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 4px 2px 8px;
         }
         .timeline-container {
             position: relative;
@@ -1743,6 +2106,120 @@
             .chat-input-bar { padding: 14px 20px 20px; }
             .message { max-width: 90%; }
         }
+
+        /* ===== Premium Workspace UI Enhancements ===== */
+        
+        /* Thin rounded modern scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-glass);
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-hover);
+        }
+
+        /* Upload Drop Zone Pulse Hover effect */
+        .drop-zone {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .drop-zone:hover {
+            animation: borderPulse 2.5s infinite ease-in-out !important;
+        }
+        @keyframes borderPulse {
+            0% { border-color: var(--border-glass); }
+            50% { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+            100% { border-color: var(--border-glass); }
+        }
+
+        /* Premium Selectors styles */
+        .theme-switcher select,
+        #apiProvider,
+        #notebookSelector {
+            border: 1px solid var(--border-glass) !important;
+            background: var(--control-bg) !important;
+            color: var(--text-primary) !important;
+            border-radius: 8px !important;
+            padding: 5px 10px !important;
+            font-size: 0.8rem !important;
+            font-weight: 600 !important;
+            outline: none !important;
+            cursor: pointer !important;
+            box-shadow: var(--shadow-sm) !important;
+            transition: var(--transition) !important;
+        }
+        .theme-switcher select:hover,
+        #apiProvider:hover,
+        #notebookSelector:hover {
+            border-color: var(--border-hover) !important;
+            transform: translateY(-0.5px) !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* Studio Card Hover enhancements & Sweep Shine effect */
+        .studio-card {
+            position: relative;
+            overflow: hidden;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-glass);
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease !important;
+        }
+        .studio-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -150%;
+            width: 150%; height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.08),
+                transparent
+            );
+            transform: skewX(-20deg);
+            pointer-events: none;
+        }
+        html[data-theme="light"] .studio-card::after {
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(15, 23, 42, 0.04),
+                transparent
+            );
+        }
+        .studio-card:hover {
+            transform: translateY(-4px) scale(1.02) !important;
+            border-color: var(--accent) !important;
+            background: var(--accent-glow) !important;
+            color: var(--text-primary) !important;
+            box-shadow: 0 8px 24px var(--accent-glow) !important;
+        }
+        .studio-card:hover::after {
+            left: 150%;
+            transition: left 0.8s ease-in-out;
+        }
+
+        /* Cohesive Chat input toolbar class */
+        .chat-input-toolbar {
+            padding: 6px 24px 10px;
+            background: var(--sticky-bg);
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            transition: background 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -1752,7 +2229,7 @@
     <div class="header-icon" style="background: none; box-shadow: none; display: flex; align-items: center; justify-content: center;">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10"></path><path d="M6 10h10"></path></svg>
     </div>
-    <h1>NBLM Research</h1>
+    <h1>DocuMind Workspace</h1>
     <div class="header-stats" id="headerStats" aria-live="polite">
         <span class="stat-pill"><strong id="statDocs">0</strong> tài liệu</span>
         <span class="stat-pill"><strong id="statChunks">0</strong> đoạn</span>
@@ -1799,6 +2276,14 @@
             <div class="drop-zone-text">Kéo thả tệp vào đây<br>hoặc <span>nhấp để chọn</span><br><small style="color:var(--text-muted)">.txt, .pdf, .csv, .xlsx, .mp3, .mp4</small></div>
             <input type="file" class="file-input" id="fileInput" accept=".txt,.pdf,.csv,.xlsx,.xls,.mp3,.mp4,.wav,.m4a" multiple>
         </div>
+        <!-- Pending files list container -->
+        <div id="pendingFileList" style="display:none; margin-top: 12px; background: var(--control-bg); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 12px; font-size: 0.8rem; box-shadow: var(--shadow-sm);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:700; color:var(--text-secondary);">
+                <span>Tệp chờ tải lên</span>
+                <button type="button" onclick="clearPendingFiles()" style="background:none; border:none; color:var(--error); cursor:pointer; font-size:0.75rem; padding:0; font-weight:600;">Xóa tất cả</button>
+            </div>
+            <div id="pendingItems" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto; padding-right:4px;"></div>
+        </div>
         <div style="display:flex; gap:10px; margin-top: 12px; margin-bottom: 8px; width:100%;">
             <button class="btn-upload" id="btnUpload" disabled style="flex:1; margin:0;"><span>⬆️</span> Tải tệp</button>
             <button class="btn-upload" id="btnUploadURL" onclick="openUploadURLModal()" style="flex:1; background:linear-gradient(135deg, #00f0ff 0%, #3b82f6 100%); color:white; margin:0;"><span>🔗</span> Thêm URL</button>
@@ -1814,7 +2299,7 @@
     <main class="chat-panel">
         <div class="messages" id="messages">
             <div class="welcome" id="welcome">
-                <div class="welcome-badge">NBLM RESEARCH</div>
+                <div class="welcome-badge">DOCUMIND WORKSPACE</div>
                 <h2>Hôm nay bạn cần nghiên cứu điều gì?</h2>
                 <p class="welcome-subtitle">Tải PDF/TXT, thêm URL hoặc YouTube — trò chuyện RAG, slide điện ảnh, podcast và Intelligence Suite trong một không gian.</p>
                 <div class="welcome-stats-bar" id="welcomeStatsBar">
@@ -1859,7 +2344,7 @@
             </div>
             <button class="btn-send" id="btnSend" title="Send">➤</button>
         </div>
-        <div style="padding:6px 24px 10px; background:rgba(10,14,26,0.6); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <div class="chat-input-toolbar">
             <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
                 <label class="tts-toggle"><input type="checkbox" id="ttsToggle"><span>🔊 Đọc phản hồi</span></label>
                 <label class="tts-toggle" title="Cho phép AI tìm kiếm trên Internet khi tài liệu không có"><input type="checkbox" id="webSearchToggle"><span>🌐 Tìm web</span></label>
@@ -1989,7 +2474,7 @@
 <!-- Auth gate (only shown when server has AUTH_ENABLED) -->
 <div class="auth-overlay" id="authOverlay">
     <div class="auth-card">
-        <h2>NBLM Research</h2>
+        <h2>DocuMind Workspace</h2>
         <p class="sub" id="authSubtitle">Đăng nhập để vào không gian nghiên cứu của bạn.</p>
         <label for="authUsername">Tên đăng nhập</label>
         <input type="text" id="authUsername" autocomplete="username" placeholder="vd: alice">
@@ -2045,7 +2530,7 @@
 
     // ===== Auth: token injection + gate (only active when server enables AUTH) =====
     const AUTH_TOKEN_KEY = 'authToken';
-    const SLIDE_ENGINE_VERSION = '8';
+    const SLIDE_ENGINE_VERSION = '9';
     function saveSlideDeck(slides) {
         try {
             localStorage.setItem('slide_deck_data', JSON.stringify(slides));
@@ -2237,8 +2722,16 @@
         const storedNotebooks = localStorage.getItem('notebooks');
         if (storedNotebooks) {
             notebooks = JSON.parse(storedNotebooks);
+            // Migrate old name 'Sổ tay mặc định' to 'DocuMind Workspace'
+            notebooks = notebooks.map(nb => {
+                if (nb.id === 'default' && nb.name === 'Sổ tay mặc định') {
+                    return { ...nb, name: 'DocuMind Workspace' };
+                }
+                return nb;
+            });
+            localStorage.setItem('notebooks', JSON.stringify(notebooks));
         } else {
-            notebooks = [{ id: 'default', name: 'Sổ tay mặc định' }];
+            notebooks = [{ id: 'default', name: 'DocuMind Workspace' }];
             localStorage.setItem('notebooks', JSON.stringify(notebooks));
         }
         
@@ -2250,7 +2743,7 @@
             localStorage.setItem('currentNotebookId', currentNotebookId);
         }
     } catch (e) {
-        notebooks = [{ id: 'default', name: 'Sổ tay mặc định' }];
+        notebooks = [{ id: 'default', name: 'DocuMind Workspace' }];
         currentNotebookId = 'default';
     }
 
@@ -2318,7 +2811,7 @@
             return;
         }
         if (currentNotebookId === 'default') {
-            showNotification("Không thể xóa sổ tay mặc định.", "error");
+            showNotification("Không thể xóa DocuMind Workspace mặc định.", "error");
             return;
         }
 
@@ -2414,7 +2907,7 @@
                     const res = await fetch(`/chat-history?notebook_id=${encodeURIComponent(nbAtLoad)}`);
                     if (res.ok) {
                         const serverChat = await res.json();
-                        if (Array.isArray(serverChat) && serverChat.length > 0) {
+                        if (Array.isArray(serverChat)) {
                             try { localStorage.setItem(`chat_history_${nbAtLoad}`, JSON.stringify(serverChat)); } catch (e) {}
                             renderChat(serverChat);
                             return;
@@ -2528,7 +3021,7 @@
             const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `nblm-chat-${currentNotebookId}-${Date.now()}.json`;
+            a.download = `documind-chat-${currentNotebookId}-${Date.now()}.json`;
             a.click();
             URL.revokeObjectURL(a.href);
             showNotification('Đã xuất hội thoại', 'success');
@@ -2654,15 +3147,157 @@
 
     // ===== GraphRAG interactive knowledge graph =====
     let knowledgeNetwork = null;
+    let graphragDragTimer = null;
+    const GRAGRAG_FLOAT_PHYSICS = {
+        enabled: true,
+        barnesHut: {
+            gravitationalConstant: -1600,
+            centralGravity: 0.05,
+            springLength: 190,
+            springConstant: 0.032,
+            damping: 0.22,
+            avoidOverlap: 0.3
+        },
+        maxVelocity: 28,
+        minVelocity: 0.35,
+        timestep: 0.55
+    };
     const GRAPH_GROUP_COLORS = {
         concept: '#deff9a', person: '#60a5fa', organization: '#f472b6',
-        technology: '#34d399', event: '#fbbf24', place: '#a78bfa', other: '#94a3b8'
+        technology: '#34d399', event: '#fbbf24', place: '#a78bfa',
+        document: '#fb923c', period: '#22d3ee', other: '#94a3b8'
     };
+    const GRAPH_GROUP_LABELS = {
+        concept: 'Khái niệm', person: 'Nhân vật', organization: 'Tổ chức',
+        technology: 'Công nghệ', event: 'Sự kiện', place: 'Địa danh',
+        document: 'Văn bản', period: 'Thời kỳ', other: 'Khác'
+    };
+    const GRAPH_GROUP_SHAPES = {
+        person: 'ellipse', organization: 'box', place: 'diamond',
+        event: 'star', document: 'box', period: 'triangle', technology: 'hexagon',
+        concept: 'dot', other: 'dot'
+    };
+
+    function graphragNodeSize(n, degree, totalNodes) {
+        const imp = Number(n.importance) || 3;
+        let size = Math.min(48, 18 + imp * 3.5 + Math.min(degree, 8) * 1.5);
+        if (totalNodes > 16) size *= 0.88;
+        if (totalNodes > 24) size *= 0.82;
+        return size;
+    }
+
+    function graphragNodeDescription(node, graph) {
+        const desc = (node.description || '').trim();
+        if (desc.length >= 40) return desc;
+        const nodeById = Object.fromEntries((graph.nodes || []).map(n => [n.id, n]));
+        const parts = [];
+        (graph.edges || []).forEach(e => {
+            if (e.from === node.id) {
+                const other = nodeById[e.to];
+                const tail = (e.detail || e.label || 'liên quan').trim();
+                parts.push(`${e.label || 'liên quan'} → ${other ? other.label : e.to}: ${tail}`);
+            } else if (e.to === node.id) {
+                const other = nodeById[e.from];
+                const tail = (e.detail || e.label || 'liên quan').trim();
+                parts.push(`${other ? other.label : e.from} → ${node.label}: ${tail}`);
+            }
+        });
+        if (parts.length) return parts.slice(0, 6).join('. ') + '.';
+        return desc || 'Xem các quan hệ liên kết bên dưới để hiểu thêm về thực thể này.';
+    }
+
+    function graphragBuildTooltip(n, graph) {
+        const group = GRAPH_GROUP_LABELS[n.group] || n.group || 'Khác';
+        const desc = graphragNodeDescription(n, graph);
+        const short = desc.length > 180 ? desc.slice(0, 177) + '…' : desc;
+        return `${n.label}\n[${group}]\n${short}`;
+    }
+
+    function graphragShowNodeDetail(nodeId) {
+        const panel = document.getElementById('graphragDetailPanel');
+        const graph = window._lastKnowledgeGraph;
+        if (!panel || !graph) return;
+        if (!nodeId) {
+            panel.innerHTML = '<div class="graphrag-detail-empty">Chọn một nút trên đồ thị để xem mô tả và quan hệ.</div>';
+            return;
+        }
+        const node = (graph.nodes || []).find(n => n.id === nodeId);
+        if (!node) {
+            panel.innerHTML = '<div class="graphrag-detail-empty">Không tìm thấy thực thể này.</div>';
+            return;
+        }
+        const group = GRAPH_GROUP_LABELS[node.group] || node.group || 'Khác';
+        const color = GRAPH_GROUP_COLORS[node.group] || GRAPH_GROUP_COLORS.other;
+        const incoming = (graph.edges || []).filter(e => e.to === nodeId);
+        const outgoing = (graph.edges || []).filter(e => e.from === nodeId);
+        const nodeById = Object.fromEntries((graph.nodes || []).map(n => [n.id, n]));
+
+        const edgeRow = (e, dir) => {
+            const otherId = dir === 'out' ? e.to : e.from;
+            const other = nodeById[otherId];
+            const arrow = dir === 'out' ? '→' : '←';
+            const detail = e.detail ? `<div class="graphrag-edge-detail">${escapeHtml(e.detail)}</div>` : '';
+            return `<div class="graphrag-edge-row" onclick="graphragFocusNode('${otherId}')">
+                <span class="graphrag-edge-arrow">${arrow}</span>
+                <span class="graphrag-edge-label">${escapeHtml(e.label || 'liên quan')}</span>
+                <span class="graphrag-edge-target">${escapeHtml(other ? other.label : otherId)}</span>
+                ${detail}
+            </div>`;
+        };
+
+        panel.innerHTML = `
+            <div class="graphrag-detail-card">
+                <div class="graphrag-detail-badge" style="background:${color}22;border-color:${color}">${escapeHtml(group)}</div>
+                <h3 class="graphrag-detail-title">${escapeHtml(node.label)}</h3>
+                <p class="graphrag-detail-desc">${escapeHtml(graphragNodeDescription(node, graph))}</p>
+                <div class="graphrag-detail-meta">Mức quan trọng: ${'★'.repeat(node.importance || 3)}${'☆'.repeat(5 - (node.importance || 3))}</div>
+            </div>
+            ${outgoing.length ? `<div class="graphrag-detail-section"><div class="graphrag-detail-heading">Quan hệ đi ra (${outgoing.length})</div>${outgoing.map(e => edgeRow(e, 'out')).join('')}</div>` : ''}
+            ${incoming.length ? `<div class="graphrag-detail-section"><div class="graphrag-detail-heading">Quan hệ đi vào (${incoming.length})</div>${incoming.map(e => edgeRow(e, 'in')).join('')}</div>` : ''}
+        `;
+    }
+
+    function graphragFocusNode(nodeId) {
+        if (!knowledgeNetwork || !nodeId) return;
+        knowledgeNetwork.selectNodes([nodeId]);
+        knowledgeNetwork.focus(nodeId, { scale: 1.15, animation: { duration: 450, easingFunction: 'easeInOutQuad' } });
+        graphragShowNodeDetail(nodeId);
+    }
+
+    function graphragFilterGroup(group) {
+        const graph = window._lastKnowledgeGraph;
+        if (!graph || !knowledgeNetwork) return;
+        const showAll = !group || group === 'all';
+        const visibleIds = new Set();
+        if (showAll) {
+            (graph.nodes || []).forEach(n => visibleIds.add(n.id));
+        } else {
+            const core = (graph.nodes || []).filter(n => n.group === group).map(n => n.id);
+            core.forEach(id => visibleIds.add(id));
+            (graph.edges || []).forEach(e => {
+                if (core.includes(e.from)) visibleIds.add(e.to);
+                if (core.includes(e.to)) visibleIds.add(e.from);
+            });
+        }
+        const nodeUpdates = (graph.nodes || []).map(n => ({
+            id: n.id,
+            hidden: !visibleIds.has(n.id)
+        }));
+        knowledgeNetwork.body.data.nodes.update(nodeUpdates);
+        const edgeUpdates = (graph.edges || []).map((e, idx) => ({
+            id: `e${idx}`,
+            hidden: !(visibleIds.has(e.from) && visibleIds.has(e.to))
+        }));
+        knowledgeNetwork.body.data.edges.update(edgeUpdates);
+        graphragFreezeAllPositions();
+        requestAnimationFrame(() => graphragFit());
+    }
 
     function renderKnowledgeGraph(graph) {
         const container = document.getElementById('knowledgeGraphContainer');
         if (!container) return;
         window._lastKnowledgeGraph = graph;
+        window._graphragNodePositions = {};
         if (typeof vis === 'undefined' || !vis.Network) {
             container.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Không tải được thư viện đồ thị (vis-network). Kiểm tra kết nối mạng.</div>';
             return;
@@ -2670,25 +3305,54 @@
 
         const isDark = (document.documentElement.dataset.theme || 'dark') === 'dark';
         const fontColor = isDark ? '#e2e8f0' : '#0f172a';
+        const edgeLabelBg = isDark ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.92)';
+
+        const degreeMap = {};
+        (graph.edges || []).forEach(e => {
+            degreeMap[e.from] = (degreeMap[e.from] || 0) + 1;
+            degreeMap[e.to] = (degreeMap[e.to] || 0) + 1;
+        });
+
+        const layoutPos = graphragLayoutPositions(graph);
+        const nodeCount = (graph.nodes || []).length;
+        const showEdgeLabels = (graph.edges || []).length <= 14;
 
         const nodes = (graph.nodes || []).map(n => {
             const color = GRAPH_GROUP_COLORS[n.group] || GRAPH_GROUP_COLORS.other;
+            const deg = degreeMap[n.id] || 0;
+            const saved = window._graphragNodePositions[n.id];
+            const pos = saved || layoutPos[n.id] || { x: 0, y: 0 };
             return {
                 id: n.id,
                 label: n.label,
                 group: n.group,
-                shape: 'dot',
-                size: 16,
-                color: { background: color, border: color, highlight: { background: color, border: '#ffffff' } },
-                font: { color: fontColor, size: 14, face: 'Outfit' }
+                x: pos.x,
+                y: pos.y,
+                shape: GRAPH_GROUP_SHAPES[n.group] || 'dot',
+                size: graphragNodeSize(n, deg, nodeCount),
+                title: graphragBuildTooltip(n, graph),
+                color: {
+                    background: color,
+                    border: isDark ? '#1e293b' : '#e2e8f0',
+                    highlight: { background: color, border: '#ffffff' },
+                    hover: { background: color, border: '#ffffff' }
+                },
+                font: { color: fontColor, size: Math.min(16, 12 + (n.importance || 3)), face: 'Outfit', strokeWidth: 3, strokeColor: isDark ? '#0f172a' : '#ffffff' },
+                borderWidth: n.importance >= 4 ? 3 : 2
             };
         });
-        const edges = (graph.edges || []).map(e => ({
-            from: e.from, to: e.to, label: e.label || '',
-            arrows: 'to',
-            color: { color: isDark ? 'rgba(148,163,184,0.5)' : 'rgba(71,85,105,0.5)', highlight: '#deff9a' },
-            font: { color: isDark ? '#94a3b8' : '#475569', size: 11, strokeWidth: 0, align: 'middle' },
-            smooth: { type: 'dynamic' }
+
+        const edges = (graph.edges || []).map((e, idx) => ({
+            id: `e${idx}`,
+            from: e.from,
+            to: e.to,
+            label: showEdgeLabels ? (e.label || '') : '',
+            title: [e.label, e.detail].filter(Boolean).join(' — ') || 'quan hệ',
+            arrows: { to: { enabled: true, scaleFactor: 0.55 } },
+            color: { color: isDark ? 'rgba(148,163,184,0.45)' : 'rgba(71,85,105,0.45)', highlight: '#deff9a', hover: '#deff9a' },
+            font: { color: isDark ? '#cbd5e1' : '#334155', size: 11, strokeWidth: 3, strokeColor: edgeLabelBg, align: 'horizontal', background: edgeLabelBg },
+            smooth: { type: 'dynamic', roundness: 0.35 },
+            width: 1.2
         }));
 
         const data = {
@@ -2696,18 +3360,187 @@
             edges: new vis.DataSet(edges)
         };
         const options = {
-            physics: { stabilization: true, barnesHut: { gravitationalConstant: -8000, springLength: 140 } },
-            interaction: { hover: true, tooltipDelay: 120, navigationButtons: false, zoomView: true, dragView: true },
-            nodes: { borderWidth: 2, shadow: true },
-            edges: { width: 1.5 }
+            layout: { improvedLayout: false, randomSeed: 7 },
+            physics: { enabled: false },
+            interaction: {
+                hover: true,
+                tooltipDelay: 150,
+                navigationButtons: false,
+                zoomView: true,
+                dragView: true,
+                dragNodes: true,
+                hideEdgesOnDrag: false,
+                multiselect: false
+            },
+            nodes: { borderWidth: 2, shadow: { enabled: true, size: 5, x: 0, y: 2 } },
+            edges: { width: 1.2, selectionWidth: 2 }
         };
 
         if (knowledgeNetwork) { try { knowledgeNetwork.destroy(); } catch (e) {} }
+        if (graphragDragTimer) { clearTimeout(graphragDragTimer); graphragDragTimer = null; }
         knowledgeNetwork = new vis.Network(container, data, options);
+
+        requestAnimationFrame(() => graphragFit());
+
+        knowledgeNetwork.on('selectNode', (params) => {
+            if (params.nodes && params.nodes[0]) graphragShowNodeDetail(params.nodes[0]);
+        });
+        knowledgeNetwork.on('deselectNode', () => graphragShowNodeDetail(null));
+        knowledgeNetwork.on('dragStart', (params) => {
+            if (!params.nodes || !params.nodes.length) return;
+            if (graphragDragTimer) { clearTimeout(graphragDragTimer); graphragDragTimer = null; }
+            knowledgeNetwork.setOptions({ interaction: { dragView: false } });
+            graphragEnableFloatPhysics();
+        });
+        knowledgeNetwork.on('dragEnd', (params) => {
+            knowledgeNetwork.setOptions({ interaction: { dragView: true } });
+            if (graphragDragTimer) clearTimeout(graphragDragTimer);
+            graphragDragTimer = setTimeout(() => graphragFreezeAllPositions(), 850);
+        });
+
+        const stats = document.getElementById('graphragStats');
+        if (stats) {
+            const groups = [...new Set((graph.nodes || []).map(n => n.group))];
+            stats.textContent = `${(graph.nodes || []).length} thực thể · ${(graph.edges || []).length} quan hệ · ${groups.length} nhóm · Kéo nút = trôi mượt · Click xem chi tiết`;
+        }
+
+        const legend = document.getElementById('graphragLegend');
+        if (legend) {
+            const used = [...new Set((graph.nodes || []).map(n => n.group))];
+            legend.innerHTML = used.map(g => {
+                const c = GRAPH_GROUP_COLORS[g] || GRAPH_GROUP_COLORS.other;
+                const label = GRAPH_GROUP_LABELS[g] || g;
+                return `<button type="button" class="graphrag-legend-chip" style="--chip:${c}" onclick="graphragFilterGroup('${g}')">${label}</button>`;
+            }).join('') + `<button type="button" class="graphrag-legend-chip graphrag-legend-all" onclick="graphragFilterGroup('all')">Tất cả</button>`;
+        }
+
+        graphragShowNodeDetail(null);
+    }
+
+    function graphragLayoutPositions(graph) {
+        const nodes = graph.nodes || [];
+        const edges = graph.edges || [];
+        const positions = {};
+        if (!nodes.length) return positions;
+
+        const idSet = new Set(nodes.map(n => n.id));
+        const adj = {};
+        nodes.forEach(n => { adj[n.id] = []; });
+        edges.forEach(e => {
+            if (idSet.has(e.from) && idSet.has(e.to) && e.from !== e.to) {
+                adj[e.from].push(e.to);
+                adj[e.to].push(e.from);
+            }
+        });
+
+        const degree = {};
+        nodes.forEach(n => { degree[n.id] = adj[n.id].length; });
+
+        const hub = [...nodes].sort((a, b) => {
+            const sa = (a.importance || 3) * Math.max(degree[a.id], 1);
+            const sb = (b.importance || 3) * Math.max(degree[b.id], 1);
+            return sb - sa;
+        })[0].id;
+
+        const depth = { [hub]: 0 };
+        const queue = [hub];
+        while (queue.length) {
+            const u = queue.shift();
+            for (const v of adj[u]) {
+                if (depth[v] === undefined) {
+                    depth[v] = depth[u] + 1;
+                    queue.push(v);
+                }
+            }
+        }
+
+        let maxDepth = 0;
+        nodes.forEach(n => {
+            if (depth[n.id] === undefined) depth[n.id] = 99;
+            if (depth[n.id] !== 99) maxDepth = Math.max(maxDepth, depth[n.id]);
+        });
+        nodes.forEach(n => {
+            if (depth[n.id] === 99) depth[n.id] = maxDepth + 1;
+        });
+
+        const nodeById = Object.fromEntries(nodes.map(n => [n.id, n]));
+        const layers = {};
+        nodes.forEach(n => {
+            const d = depth[n.id];
+            if (!layers[d]) layers[d] = [];
+            layers[d].push(n.id);
+        });
+
+        positions[hub] = { x: 0, y: 0 };
+
+        const baseR = 250;
+        const rStep = 210;
+
+        Object.keys(layers).map(Number).sort((a, b) => a - b).forEach(d => {
+            if (d === 0) return;
+            const ring = layers[d];
+            const radius = baseR + (d - 1) * rStep;
+            ring.sort((a, b) => {
+                const ga = nodeById[a]?.group || '';
+                const gb = nodeById[b]?.group || '';
+                return ga.localeCompare(gb) || String(nodeById[a]?.label || '').localeCompare(String(nodeById[b]?.label || ''));
+            });
+            const count = ring.length;
+            ring.forEach((id, i) => {
+                const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+                positions[id] = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+            });
+        });
+
+        return positions;
+    }
+
+    function graphragEnableFloatPhysics() {
+        if (!knowledgeNetwork) return;
+        const graph = window._lastKnowledgeGraph;
+        if (graph && graph.nodes) {
+            const updates = graph.nodes
+                .filter(n => !knowledgeNetwork.body.data.nodes.get(n.id)?.hidden)
+                .map(n => ({ id: n.id, physics: true }));
+            if (updates.length) knowledgeNetwork.body.data.nodes.update(updates);
+        }
+        knowledgeNetwork.setOptions({ physics: GRAGRAG_FLOAT_PHYSICS });
+    }
+
+    function graphragFreezeAllPositions() {
+        if (!knowledgeNetwork) return;
+        const graph = window._lastKnowledgeGraph;
+        if (!graph || !graph.nodes) return;
+        const ids = graph.nodes.map(n => n.id);
+        const positions = knowledgeNetwork.getPositions(ids);
+        const updates = ids.map(id => {
+            const pos = positions[id];
+            if (pos) window._graphragNodePositions[id] = { x: pos.x, y: pos.y };
+            return { id, x: pos?.x, y: pos?.y, physics: false };
+        });
+        knowledgeNetwork.body.data.nodes.update(updates);
+        knowledgeNetwork.setOptions({ physics: { enabled: false } });
+    }
+
+    function graphragFreezeLayout() {
+        if (!knowledgeNetwork) return;
+        try {
+            knowledgeNetwork.setOptions({ physics: false });
+        } catch (e) {}
     }
 
     function graphragFit() {
-        if (knowledgeNetwork) knowledgeNetwork.fit({ animation: true });
+        if (!knowledgeNetwork) return;
+        try {
+            knowledgeNetwork.fit({
+                animation: { duration: 400, easingFunction: 'easeInOutQuad' }
+            });
+        } catch (e) {}
+    }
+
+    function setStudioModalMode(type) {
+        const modal = document.querySelector('#studioModalOverlay .studio-modal');
+        if (modal) modal.classList.toggle('studio-modal--graphrag', type === 'graphrag');
     }
 
     // ===== Clipboard quick-summary =====
@@ -3070,6 +3903,7 @@
     function closeStudioModal() {
         const overlay = document.getElementById('studioModalOverlay');
         if (overlay) overlay.classList.remove('active');
+        setStudioModalMode('');
         // Stop podcast audio if closing modal
         if (typeof stopPodcast === 'function') stopPodcast();
     }
@@ -3282,23 +4116,71 @@
 
     const ALLOWED_UPLOAD_EXT = ['.txt', '.pdf', '.csv', '.xlsx', '.xls', '.mp3', '.mp4', '.wav', '.m4a'];
     function handleFiles(files) {
-        selectedFiles = Array.from(files).filter(f =>
+        const newFiles = Array.from(files).filter(f =>
             ALLOWED_UPLOAD_EXT.some(ext => f.name.toLowerCase().endsWith(ext))
         );
+
+        newFiles.forEach(f => {
+            if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
+                selectedFiles.push(f);
+            }
+        });
+
         btnUpload.disabled = selectedFiles.length === 0;
         if (selectedFiles.length > 0) {
-            showNotification(`${selectedFiles.length} file(s) đã chọn. Click để upload!`, 'success');
-        } else {
+            showNotification(`Đã thêm ${newFiles.length} file(s) vào hàng chờ.`, 'success');
+        } else if (newFiles.length === 0 && files.length > 0) {
             showNotification('Vui lòng chọn file .txt, .pdf, .csv, .xlsx, .mp3 hoặc .mp4 hợp lệ.', 'error');
         }
+        renderPendingFiles();
     }
+
+    function renderPendingFiles() {
+        const container = document.getElementById('pendingFileList');
+        const itemsContainer = document.getElementById('pendingItems');
+        if (!container || !itemsContainer) return;
+
+        if (selectedFiles.length === 0) {
+            container.style.display = 'none';
+            itemsContainer.innerHTML = '';
+            return;
+        }
+
+        container.style.display = 'block';
+        itemsContainer.innerHTML = selectedFiles.map((file, idx) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:rgba(255, 255, 255, 0.04); border-radius:6px; border:1px solid var(--border-glass);">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:160px; color:var(--text-primary); font-weight:500; font-size:0.75rem;" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                <button type="button" onclick="removePendingFile(${idx})" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem; padding:0 4px; line-height:1; transition:color 0.2s;" onmouseover="this.style.color='var(--error)'" onmouseout="this.style.color='var(--text-muted)'">✕</button>
+            </div>
+        `).join('');
+    }
+
+    window.removePendingFile = function(idx) {
+        selectedFiles.splice(idx, 1);
+        btnUpload.disabled = selectedFiles.length === 0;
+        renderPendingFiles();
+        if (selectedFiles.length === 0) {
+            fileInput.value = '';
+        }
+    };
+
+    window.clearPendingFiles = function() {
+        selectedFiles = [];
+        btnUpload.disabled = true;
+        renderPendingFiles();
+        fileInput.value = '';
+    };
 
     btnUpload.addEventListener('click', async () => {
         if (selectedFiles.length === 0) return;
         btnUpload.disabled = true;
         btnUpload.innerHTML = '<div class="spinner"></div> Đang tải lên...';
 
-        for (const file of selectedFiles) {
+        const filesToUpload = [...selectedFiles];
+        const pendingContainer = document.getElementById('pendingFileList');
+        if (pendingContainer) pendingContainer.style.display = 'none';
+
+        for (const file of filesToUpload) {
             const formData = new FormData();
             formData.append('file', file);
 
@@ -3316,10 +4198,11 @@
         }
 
         showNotification('Tải lên và nhúng tài liệu thành công!', 'success');
-        btnUpload.innerHTML = '<span>⬆️</span> Tải lên';
+        btnUpload.innerHTML = '<span>⬆️</span> Tải tệp';
         btnUpload.disabled = true;
         selectedFiles = [];
         fileInput.value = '';
+        renderPendingFiles();
         showSuggestions();
         await loadUploadedFilesFromServer();
         refreshNotebookStats();
@@ -3707,6 +4590,68 @@
         messages.scrollTop = messages.scrollHeight;
     }
 
+    function extractJSON(text) {
+        if (!text) return null;
+        // Try to find code blocks first
+        const fenceMatch = text.match(/```json([\s\S]*?)```/) || text.match(/```([\s\S]*?)```/);
+        if (fenceMatch) {
+            try {
+                const parsed = JSON.parse(fenceMatch[1].trim());
+                if (parsed) return parsed;
+            } catch (e) {}
+        }
+        
+        // Fallback: search for braces or brackets
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            const candidate = text.substring(firstBrace, lastBrace + 1);
+            try {
+                const parsed = JSON.parse(candidate);
+                if (parsed) return parsed;
+            } catch (e) {}
+        }
+
+        const firstBracket = text.indexOf('[');
+        const lastBracket = text.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+            const candidate = text.substring(firstBracket, lastBracket + 1);
+            try {
+                const parsed = JSON.parse(candidate);
+                if (parsed) return parsed;
+            } catch (e) {}
+        }
+        return null;
+    }
+
+    function renderMarkdownInline(text) {
+        if (!text) return '';
+        // Convert double backslashes in LaTeX equations (common in JSON strings) to single backslashes
+        let cleanText = String(text).replace(/\\\\/g, '\\');
+        try {
+            const parsed = marked.parseInline(cleanText);
+            return DOMPurify.sanitize(parsed, { USE_PROFILES: { html: true, svg: true, mathMl: true } });
+        } catch (e) {
+            console.error("Error parsing inline markdown/KaTeX:", e);
+            return escapeHtml(cleanText);
+        }
+    }
+
+    function normalizeQuizQuestions(questions) {
+        if (!Array.isArray(questions)) return null;
+        questions.forEach(q => {
+            if (q) {
+                if (q.correct_answer !== undefined && q.answer === undefined) {
+                    q.answer = q.correct_answer;
+                }
+                if (q.answer !== undefined) {
+                    q.answer = String(q.answer).trim();
+                }
+            }
+        });
+        return questions.filter(q => q && q.question && q.options && q.answer !== undefined);
+    }
+
     function renderMessageContent(el, rawText) {
         let cleanText = rawText.replace(/<tool_call[\s\S]*?<\/tool_call>/g, '');
         cleanText = cleanText.replace(/<tool_call[\s\S]*/g, '');
@@ -3716,25 +4661,32 @@
         if (quizMatch) {
             const quizJsonStr = quizMatch[1].trim();
             try {
-                const questions = JSON.parse(quizJsonStr);
-                renderInteractiveQuizWidget(el, questions);
-                return;
+                const rawQuestions = JSON.parse(quizJsonStr);
+                const questions = normalizeQuizQuestions(rawQuestions);
+                if (questions && questions.length > 0) {
+                    renderInteractiveQuizWidget(el, questions);
+                    return;
+                }
             } catch (e) {
                 // Ignore incomplete JSON stream
             }
         }
 
-        const jsonMatch = cleanText.match(/```json([\s\S]*?)```/);
-        if (jsonMatch) {
-            const jsonStr = jsonMatch[1].trim();
-            try {
-                const data = JSON.parse(jsonStr);
-                if (Array.isArray(data) && data.length > 0 && data[0].question && data[0].options && data[0].answer) {
-                    renderInteractiveQuizWidget(el, data);
+        const parsedJson = extractJSON(cleanText);
+        if (parsedJson) {
+            let rawQuestions = null;
+            if (Array.isArray(parsedJson)) {
+                rawQuestions = parsedJson;
+            } else if (parsedJson && Array.isArray(parsedJson.questions)) {
+                rawQuestions = parsedJson.questions;
+            }
+            
+            if (rawQuestions) {
+                const questions = normalizeQuizQuestions(rawQuestions);
+                if (questions && questions.length > 0) {
+                    renderInteractiveQuizWidget(el, questions);
                     return;
                 }
-            } catch (e) {
-                // ignore
             }
         }
 
@@ -3824,18 +4776,20 @@
 
         questions.forEach((q, idx) => {
             let optionsHtml = '';
-            Object.entries(q.options).forEach(([key, val]) => {
+            const isOptArray = Array.isArray(q.options);
+            Object.entries(q.options).forEach(([key, val], oIdx) => {
+                const label = isOptArray ? String.fromCharCode(65 + oIdx) : key;
                 optionsHtml += `
                     <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; cursor:pointer;">
                         <input type="radio" name="q-${idx}" value="${key}" style="cursor:pointer;">
-                        <strong>${key}.</strong> ${escapeHtml(val)}
+                        <strong>${label}.</strong> <span>${renderMarkdownInline(val)}</span>
                     </label>
                 `;
             });
 
             html += `
                 <div style="background:rgba(255,255,255,0.02); padding:14px; border-radius:8px; border:1px solid var(--border-glass); margin-bottom:12px;">
-                    <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px;">Câu ${idx + 1}: ${escapeHtml(q.question)}</div>
+                    <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px;">Câu ${idx + 1}: ${renderMarkdownInline(q.question)}</div>
                     <div style="font-size:0.8rem;">
                         ${optionsHtml}
                     </div>
@@ -3843,7 +4797,6 @@
                 </div>
             `;
         });
-
         html += `
                 <button class="btn-action" style="padding: 8px 16px; font-size: 0.8rem;" onclick="checkWidgetAnswers(this, ${JSON.stringify(questions).replace(/"/g, '&quot;')})">
                     Submit Quiz
@@ -3852,7 +4805,8 @@
         `;
 
         el.innerHTML = DOMPurify.sanitize(html, {
-            ADD_TAGS: ['input', 'label'],
+            USE_PROFILES: { html: true, svg: true, mathMl: true },
+            ADD_TAGS: ['input', 'label', 'span'],
             ADD_ATTR: ['type', 'name', 'value', 'checked', 'onclick']
         });
         messages.scrollTop = messages.scrollHeight;
@@ -3872,15 +4826,35 @@
             }
 
             const selectedKey = selectedInput.value;
-            const correctKey = q.answer;
+            const correctKey = String(q.answer).trim();
+            const isOptArray = Array.isArray(q.options);
+
+            let isCorrect = (selectedKey === correctKey);
+            if (!isCorrect && isOptArray) {
+                const parsedInt = parseInt(correctKey);
+                if (!isNaN(parsedInt) && String(parsedInt) === selectedKey) {
+                    isCorrect = true;
+                } else {
+                    isCorrect = (q.options[parseInt(selectedKey)] === correctKey);
+                }
+            } else if (!isCorrect && typeof q.options === 'object' && q.options !== null) {
+                isCorrect = (q.options[selectedKey] === correctKey);
+            }
 
             container.querySelectorAll(`input[name="q-${idx}"]`).forEach(input => input.disabled = true);
 
             if (feedbackEl) {
-                if (selectedKey === correctKey) {
+                if (isCorrect) {
                     feedbackEl.innerHTML = `<span style="color: var(--success)">✓ Chính xác!</span>`;
                 } else {
-                    feedbackEl.innerHTML = `<span style="color: var(--error)">✗ Sai rồi! Đáp án đúng là ${correctKey}.</span>`;
+                    let correctLabel = correctKey;
+                    if (isOptArray) {
+                        const parsedInt = parseInt(correctKey);
+                        if (!isNaN(parsedInt) && parsedInt >= 0 && parsedInt < q.options.length) {
+                            correctLabel = String.fromCharCode(65 + parsedInt);
+                        }
+                    }
+                    feedbackEl.innerHTML = `<span style="color: var(--error)">✗ Sai rồi! Đáp án đúng là ${correctLabel}.</span>`;
                 }
             }
         });
@@ -4185,6 +5159,7 @@
         
         const type = item.type;
         const data = item.data;
+        setStudioModalMode(type);
         
         if (type === 'study_guide' || type === 'briefing' || type === 'summary') {
             const parsed = marked.parse(data);
@@ -4210,10 +5185,10 @@
                     <div class="flashcard" onclick="this.classList.toggle('flipped')">
                         <div class="flashcard-inner">
                             <div class="flashcard-front">
-                                <div>${escapeHtml(card.front)}</div>
+                                <div>${renderMarkdownInline(card.front)}</div>
                             </div>
                             <div class="flashcard-back">
-                                <div>${escapeHtml(card.back)}</div>
+                                <div>${renderMarkdownInline(card.back)}</div>
                             </div>
                         </div>
                     </div>
@@ -4242,21 +5217,23 @@
                 faqHtml += `
                     <div class="faq-item" id="faq-${idx}">
                         <div class="faq-question" onclick="document.getElementById('faq-${idx}').classList.toggle('active')">
-                            ${escapeHtml(faq.question)}
+                            ${renderMarkdownInline(faq.question)}
                         </div>
                         <div class="faq-answer">
-                            ${escapeHtml(faq.answer)}
+                            ${renderMarkdownInline(faq.answer)}
                         </div>
                     </div>
                 `;
             });
             content.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-glass); padding-bottom:12px; margin-bottom:20px;">
-                    <h2 style="margin:0; font-size:1.4rem; color:var(--text-primary);">❓ Những câu hỏi FAQ thường gặp</h2>
+                <div class="faq-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(15,23,42,0.1); padding-bottom:12px; margin-bottom:16px;">
+                    <h2 style="margin:0; font-size:1.4rem; color:#0f172a;">❓ Những câu hỏi FAQ thường gặp</h2>
                     <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem;" onclick="addFaqToNotes()">📌 Lưu tất cả vào ghi chú</button>
                 </div>
                 <div class="faq-list">
                     ${faqHtml}
+                </div>
                 </div>
             `;
             window.addFaqToNotes = () => {
@@ -4271,9 +5248,9 @@
             data.forEach(item => {
                 timelineHtml += `
                     <div class="timeline-item">
-                        <div class="timeline-time">${escapeHtml(item.time)}</div>
-                        <div class="timeline-title">${escapeHtml(item.event)}</div>
-                        ${item.detail ? `<div class="timeline-detail">${escapeHtml(item.detail)}</div>` : ''}
+                        <div class="timeline-time">${renderMarkdownInline(item.time)}</div>
+                        <div class="timeline-title">${renderMarkdownInline(item.event)}</div>
+                        ${item.detail ? `<div class="timeline-detail">${renderMarkdownInline(item.detail)}</div>` : ''}
                     </div>
                 `;
             });
@@ -4300,13 +5277,13 @@
                 Object.entries(q.options).forEach(([key, val]) => {
                     optionsHtml += `
                         <div class="quiz-option" style="padding:10px 14px; border:1px solid var(--border-glass); border-radius:6px; margin-bottom:6px; cursor:pointer; font-size:0.85rem;" onclick="selectQuizOption(this, '${key}', '${q.answer}', '${idx}')">
-                            <strong>${key}.</strong> ${escapeHtml(val)}
+                            <strong>${key}.</strong> <span>${renderMarkdownInline(val)}</span>
                         </div>
                     `;
                 });
                 quizHtml += `
                     <div class="quiz-card" style="background:rgba(255,255,255,0.02); padding:16px; border-radius:10px; border:1px solid var(--border-glass); margin-bottom:16px;">
-                        <div class="quiz-question" style="font-weight:600; font-size:0.95rem; margin-bottom:10px;">Câu ${idx + 1}: ${escapeHtml(q.question)}</div>
+                        <div class="quiz-question" style="font-weight:600; font-size:0.95rem; margin-bottom:10px;">Câu ${idx + 1}: ${renderMarkdownInline(q.question)}</div>
                         <div class="quiz-options">${optionsHtml}</div>
                         <div class="quiz-feedback" id="feedback-${idx}" style="font-size:0.8rem; margin-top:6px; font-weight:600; display:none;"></div>
                     </div>
@@ -4337,35 +5314,60 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-glass); padding-bottom:12px; margin-bottom:20px;">
                     <h2 style="margin:0; font-size:1.4rem; color:var(--text-primary);">🕸️ Sơ đồ tư duy trực quan (Mermaid)</h2>
                     <div style="display:flex; gap:8px;">
-                        <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem;" onclick="exportMindmapSvg()">🖼️ Xuất SVG</button>
-                        <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem;" onclick="exportMindmapPng()">📷 Xuất PNG</button>
-                        <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary);" onclick="copyToClipboard(\`${data.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">📋 Sao chép mã</button>
+                        <button class="toolbar-btn" onclick="zoomMindmap(1.2)">🔍 Phóng to</button>
+                        <button class="toolbar-btn" onclick="zoomMindmap(0.833)">🔍 Thu nhỏ</button>
+                        <button class="toolbar-btn" onclick="resetMindmapZoom()">🎯 Vừa khung</button>
+                        <button class="toolbar-btn" onclick="exportMindmapSvg()">🖼️ Xuất SVG</button>
+                        <button class="toolbar-btn" onclick="exportMindmapPng()">📷 Xuất PNG</button>
+                        <button class="toolbar-btn" onclick="copyToClipboard(\`${data.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">📋 Sao chép mã</button>
                     </div>
                 </div>
-                <div style="background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius); padding: 24px; min-height: 400px; display: flex; align-items: center; justify-content: center; position: relative; overflow: auto;">
-                    <div class="mermaid" id="modalGraphContainer" style="width: 100%;">${escapeHtml(data)}</div>
+                <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:10px;">Lăn chuột để phóng to/thu nhỏ, nhấn giữ kéo chuột để di chuyển sơ đồ.</div>
+                <div id="mindmapViewport" style="background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius); min-height: 480px; height: 550px; display: block; position: relative; overflow: hidden; cursor: grab;">
+                    <div class="mermaid" id="modalGraphContainer" style="width: auto; height: auto; transform-origin: 0 0; display: block;">${escapeHtml(data)}</div>
                 </div>
             `;
             const mContainer = document.getElementById('modalGraphContainer');
             if (mContainer) {
                 mContainer.removeAttribute('data-processed');
+                
+                const initZoomPan = () => {
+                    const svg = mContainer.querySelector('svg');
+                    if (svg) {
+                        svg.style.maxWidth = 'none';
+                        svg.style.width = 'auto';
+                        svg.style.height = 'auto';
+                        svg.style.display = 'block';
+                        resetMindmapZoom();
+                        setupMindmapControls();
+                    } else {
+                        setTimeout(initZoomPan, 30);
+                    }
+                };
+
                 if (typeof mermaid.run === 'function') {
                     mermaid.run({ nodes: [mContainer] });
+                    initZoomPan();
                 } else if (typeof mermaid.init === 'function') {
                     mermaid.init(undefined, mContainer);
+                    initZoomPan();
                 }
             }
         } else if (type === 'graphrag') {
             content.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-glass); padding-bottom:12px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-glass); padding-bottom:12px; margin-bottom:12px;">
                     <h2 style="margin:0; font-size:1.4rem; color:var(--text-primary);">🧠 Đồ thị tri thức (GraphRAG)</h2>
                     <div style="display:flex; gap:8px;">
                         <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem;" onclick="graphragFit()">🎯 Vừa khung</button>
                         <button class="btn-action" style="margin:0; padding:6px 12px; font-size:0.8rem; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary);" onclick="copyToClipboard(JSON.stringify(window._lastKnowledgeGraph||{}, null, 2))">📋 Sao chép JSON</button>
                     </div>
                 </div>
-                <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:10px;">${(data.nodes||[]).length} thực thể · ${(data.edges||[]).length} quan hệ · Kéo để di chuyển, lăn chuột để zoom.</div>
-                <div id="knowledgeGraphContainer" style="height:520px; background:var(--bg-card); border:1px solid var(--border-glass); border-radius:var(--radius);"></div>
+                <div id="graphragStats" style="font-size:0.78rem; color:var(--text-muted); margin-bottom:8px;"></div>
+                <div id="graphragLegend" class="graphrag-legend"></div>
+                <div class="graphrag-layout">
+                    <div id="knowledgeGraphContainer" class="graphrag-canvas"></div>
+                    <div id="graphragDetailPanel" class="graphrag-detail-panel"></div>
+                </div>
             `;
             renderKnowledgeGraph(data);
         } else if (type === 'podcast') {
@@ -4440,6 +5442,134 @@
                 </div>
             `;
         }
+    }
+
+    let zoomScale = 1;
+    let panX = 0;
+    let panY = 0;
+
+    window.zoomMindmap = function(factor) {
+        const container = document.getElementById('modalGraphContainer');
+        if (!container) return;
+        zoomScale *= factor;
+        zoomScale = Math.min(Math.max(0.15, zoomScale), 4);
+        updateMindmapTransform();
+    };
+
+    window.resetMindmapZoom = function() {
+        const viewport = document.getElementById('mindmapViewport');
+        const container = document.getElementById('modalGraphContainer');
+        if (!viewport || !container) return;
+        
+        const svg = container.querySelector('svg');
+        if (svg) {
+            svg.style.maxWidth = 'none';
+            svg.style.width = 'auto';
+            svg.style.height = 'auto';
+            svg.style.display = 'block';
+            
+            const svgWidth = svg.viewBox?.baseVal?.width || svg.clientWidth || 800;
+            const svgHeight = svg.viewBox?.baseVal?.height || svg.clientHeight || 400;
+            
+            const viewportWidth = viewport.clientWidth;
+            const viewportHeight = viewport.clientHeight;
+            
+            zoomScale = Math.min((viewportWidth - 32) / svgWidth, (viewportHeight - 32) / svgHeight, 1.2);
+            if (zoomScale < 0.15) zoomScale = 0.15;
+            
+            panX = (viewportWidth - svgWidth * zoomScale) / 2;
+            panY = (viewportHeight - svgHeight * zoomScale) / 2;
+        } else {
+            zoomScale = 1;
+            panX = 0;
+            panY = 0;
+        }
+        
+        updateMindmapTransform();
+    };
+
+    function updateMindmapTransform() {
+        const container = document.getElementById('modalGraphContainer');
+        if (!container) return;
+        container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+    }
+
+    function setupMindmapControls() {
+        const viewport = document.getElementById('mindmapViewport');
+        const container = document.getElementById('modalGraphContainer');
+        if (!viewport || !container) return;
+
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        viewport.onmousedown = function(e) {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            viewport.style.cursor = 'grabbing';
+        };
+
+        const onMouseUpGlobal = function() {
+            if (isDragging) {
+                isDragging = false;
+                if (viewport) viewport.style.cursor = 'grab';
+            }
+        };
+
+        window.removeEventListener('mouseup', onMouseUpGlobal);
+        window.addEventListener('mouseup', onMouseUpGlobal);
+
+        viewport.onmousemove = function(e) {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            updateMindmapTransform();
+        };
+
+        let touchStart = { x: 0, y: 0 };
+        viewport.ontouchstart = function(e) {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - panX;
+                startY = e.touches[0].clientY - panY;
+            }
+        };
+
+        viewport.ontouchend = function() {
+            isDragging = false;
+        };
+
+        viewport.ontouchmove = function(e) {
+            if (!isDragging || e.touches.length !== 1) return;
+            panX = e.touches[0].clientX - startX;
+            panY = e.touches[0].clientY - startY;
+            updateMindmapTransform();
+        };
+
+        viewport.onwheel = function(e) {
+            e.preventDefault();
+            const zoomFactor = 1.1;
+            const oldScale = zoomScale;
+            
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (e.deltaY < 0) {
+                zoomScale *= zoomFactor;
+            } else {
+                zoomScale /= zoomFactor;
+            }
+            zoomScale = Math.min(Math.max(0.15, zoomScale), 4);
+
+            const scaleRatio = zoomScale / oldScale;
+            panX = e.clientX - viewport.getBoundingClientRect().left - mouseX * scaleRatio;
+            panY = e.clientY - viewport.getBoundingClientRect().top - mouseY * scaleRatio;
+
+            updateMindmapTransform();
+        };
     }
 
     window.exportMindmapSvg = function() {

@@ -1,12 +1,12 @@
 @echo off
 setlocal EnableExtensions
-title NBLM Research
+title DocuMind Workspace
 cd /d "%~dp0"
 set PYTHONUTF8=1
 
 echo.
 echo  =============================================
-echo       NBLM Research - Dang khoi dong...
+echo       DocuMind Workspace - Dang khoi dong...
 echo  =============================================
 echo.
 echo  Thu muc: %CD%

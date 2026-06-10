@@ -1,4 +1,4 @@
-# BÁO CÁO ĐỒ ÁN — NBLM Research
+# BÁO CÁO ĐỒ ÁN — DocuMind Workspace
 
 > Hệ thống nghiên cứu tài liệu bằng AI theo phong cách NotebookLM, tự host.
 > Môn: **Thiết kế phần mềm**. Tài liệu này dùng cho báo cáo & thuyết trình.
@@ -7,7 +7,7 @@
 
 ## 1. Tổng quan
 
-**NBLM Research** là một ứng dụng web cho phép người dùng:
+**DocuMind Workspace** là một ứng dụng web cho phép người dùng:
 - Nạp tài liệu của riêng mình (PDF, TXT, CSV/XLSX, URL web, YouTube, audio/video).
 - Trò chuyện hỏi–đáp dựa trên tài liệu đó (RAG – Retrieval-Augmented Generation) kèm trích dẫn nguồn.
 - Sinh nội dung phái sinh: tóm tắt, trắc nghiệm, flashcard, sơ đồ tư duy, **đồ thị tri thức**, podcast 2 người, slide thuyết trình.

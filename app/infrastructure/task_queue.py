@@ -22,7 +22,7 @@ def _init_celery():
         return None
     try:
         from celery import Celery
-        celery_app = Celery("nblm", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
+        celery_app = Celery("documind", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
         celery_app.conf.task_track_started = True
         celery_app.conf.broker_connection_retry_on_startup = True
         logger.info(f"Celery initialized with broker {settings.REDIS_URL}")
@@ -89,7 +89,7 @@ if settings.CELERY_ENABLED:
     if _app is not None:
         import importlib
 
-        @_app.task(name="nblm.run")
+        @_app.task(name="documind.run")
         def _celery_run(module_name, func_name, args, kwargs):
             mod = importlib.import_module(module_name)
             fn = getattr(mod, func_name)

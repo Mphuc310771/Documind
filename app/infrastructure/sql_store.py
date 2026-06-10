@@ -67,11 +67,16 @@ class SQLStore:
             if "owner" not in cols:
                 c.execute("ALTER TABLE notebooks ADD COLUMN owner TEXT")
 
+            # Update default notebook name from "Sổ tay mặc định" to "DocuMind Workspace" if it exists
+            c.execute(
+                "UPDATE notebooks SET name = 'DocuMind Workspace' WHERE id = 'default' AND name = 'Sổ tay mặc định'"
+            )
+
             cur = c.execute("SELECT COUNT(*) FROM notebooks WHERE id = 'default'")
             if cur.fetchone()[0] == 0:
                 c.execute(
                     "INSERT INTO notebooks (id, name, created_at) VALUES (?, ?, ?)",
-                    ("default", "Sổ tay mặc định", time.time()),
+                    ("default", "DocuMind Workspace", time.time()),
                 )
 
     # ----- Notebooks -----

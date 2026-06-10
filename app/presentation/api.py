@@ -204,7 +204,7 @@ def api_status():
         chromadb_ok = False
     return {
         "status": "ok" if chromadb_ok else "degraded",
-        "service": "NBLM Research",
+        "service": "DocuMind Workspace",
         "chromadb": chromadb_ok,
     }
 
@@ -374,7 +374,7 @@ def create_notebook(request: NotebookCreateRequest, user_id: str | None = Depend
 @router.delete("/notebooks/{notebook_id}")
 def delete_notebook(notebook_id: str, user_id: str | None = Depends(get_current_user_id)):
     if notebook_id == "default":
-        raise HTTPException(status_code=400, detail="Không thể xóa sổ tay mặc định.")
+        raise HTTPException(status_code=400, detail="Không thể xóa DocuMind Workspace mặc định.")
     _assert_notebook_access(notebook_id, user_id)
     # Remove vector chunks for this notebook as well
     try:

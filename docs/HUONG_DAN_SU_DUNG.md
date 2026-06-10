@@ -1,4 +1,4 @@
-# Hướng dẫn cài đặt & sử dụng NBLM Research
+# Hướng dẫn cài đặt & sử dụng DocuMind Workspace
 
 Tài liệu này dành cho **người tải project từ GitHub** — chưa cần biết lập trình nhiều, chỉ cần làm đúng thứ tự bên dưới.
 

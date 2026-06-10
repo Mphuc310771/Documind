@@ -30,26 +30,21 @@ class FallbackLLMService(ILLMService):
         """
         Route request to the selected provider or run the auto-failover pipeline.
         """
-        # If user explicitly chooses a provider, route to it directly with basic error catcher
+        # If user explicitly chooses a provider, route to it directly
         if provider != "auto":
-            try:
-                if provider == "groq":
-                    yield from self.groq.generate_answer(context, query, system_prompt, provider)
-                elif provider == "gemini":
-                    yield from self.gemini.generate_answer(context, query, system_prompt, provider)
-                elif provider == "openrouter" and self.openrouter:
-                    yield from self.openrouter.generate_answer(context, query, system_prompt, provider)
-                elif provider == "sambanova" and self.sambanova:
-                    yield from self.sambanova.generate_answer(context, query, system_prompt, provider)
-                elif provider == "mistral" and self.mistral:
-                    yield from self.mistral.generate_answer(context, query, system_prompt, provider)
-                else:
-                    yield f"\n\n*(❌ Provider '{provider}' không khả dụng hoặc chưa được cấu hình)*"
-                return
-            except Exception as e:
-                logger.error(f"Selected provider {provider} failed: {e}", exc_info=True)
-                yield f"\n\n*(❌ Hệ thống {provider.upper()} gặp sự cố: {str(e)})*"
-                return
+            if provider == "groq":
+                yield from self.groq.generate_answer(context, query, system_prompt, provider)
+            elif provider == "gemini":
+                yield from self.gemini.generate_answer(context, query, system_prompt, provider)
+            elif provider == "openrouter" and self.openrouter:
+                yield from self.openrouter.generate_answer(context, query, system_prompt, provider)
+            elif provider == "sambanova" and self.sambanova:
+                yield from self.sambanova.generate_answer(context, query, system_prompt, provider)
+            elif provider == "mistral" and self.mistral:
+                yield from self.mistral.generate_answer(context, query, system_prompt, provider)
+            else:
+                raise ValueError(f"Provider '{provider}' không khả dụng hoặc chưa được cấu hình")
+            return
 
         # Auto-failover pipeline (Mistral -> SambaNova -> Gemini -> Groq -> OpenRouter)
         pipeline = [
@@ -82,15 +77,15 @@ class FallbackLLMService(ILLMService):
                     logger.warning(f"{name} failed during generation: {e}")
                     if idx < len(active_pipeline) - 1:
                         next_name = active_pipeline[idx + 1][0]
-                        yield f"\n\n*(⚠️ Hệ thống {name.upper()} gặp sự cố/timeout, đang tự động chuyển sang kênh dự phòng {next_name}...)*\n\n"
+                        logger.warning(f"Automatically falling back from {name} to {next_name}...")
                     else:
                         raise e
             except Exception as e:
                 logger.warning(f"Failed to initialize generation via {name}: {e}")
                 if idx < len(active_pipeline) - 1:
                     next_name = active_pipeline[idx + 1][0]
-                    yield f"\n\n*(⚠️ Hệ thống {name.upper()} gặp sự cố/timeout, đang tự động chuyển sang kênh dự phòng {next_name}...)*\n\n"
+                    logger.warning(f"Automatically falling back from {name} to {next_name}...")
                 else:
                     logger.error(f"All LLMs in failover pipeline failed. Last error from {name}: {e}", exc_info=True)
-                    yield f"\n\n*(❌ Tất cả các hệ thống AI chính và dự phòng đều gặp sự cố. Lỗi cuối cùng: {str(e)})*"
+                    raise RuntimeError(f"Tất cả các hệ thống AI chính và dự phòng đều gặp sự cố. Lỗi: {str(e)}") from e
 

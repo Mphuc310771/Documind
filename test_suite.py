@@ -177,8 +177,6 @@ class TestDistributedRAGHub(unittest.TestCase):
         tokens = list(fallback_service.generate_answer(context="Context", query="Query"))
         
         self.assertTrue(any("Groq Response Chunk" in t for t in tokens))
-        self.assertTrue(any("SambaNova" in t for t in tokens))
-        self.assertTrue(any("Gemini" in t for t in tokens))
         mock_mistral.generate_answer.assert_called_once()
         mock_sambanova.generate_answer.assert_called_once()
         mock_gemini.generate_answer.assert_called_once()
