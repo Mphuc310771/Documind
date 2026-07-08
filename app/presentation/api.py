@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Header
 from fastapi.responses import StreamingResponse, Response
 from app.core.config import settings
 from app.infrastructure.auth import hash_password, verify_password, create_token, decode_token
-from app.domain.models import QueryRequest, SynthesizeNotesRequest, StudioGenerateRequest, PodcastGenerateRequest, SlideGenerateRequest, UploadURLRequest, NotebookCreateRequest, ChatMessageRequest, CanvasEditRequest, AuthRequest, QuickSummarizeRequest, TtsSpeakRequest, AppGenerateRequest
+from app.domain.models import QueryRequest, SynthesizeNotesRequest, StudioGenerateRequest, PodcastGenerateRequest, SlideGenerateRequest, UploadURLRequest, NotebookCreateRequest, ChatMessageRequest, CanvasEditRequest, AuthRequest, QuickSummarizeRequest, TtsSpeakRequest, AppGenerateRequest, RedTeamRequest
 from app.infrastructure.tts_adapter import synthesize_speech, clean_tts_text
 from app.application.podcast_usecase import PodcastUseCase
 from app.application.synthesis_usecase import SynthesisUseCase
 from app.application.studio_usecase import StudioUseCase
 from app.application.slide_usecase import SlideGeneratorUseCase
 from app.application.app_generator_usecase import AppGeneratorUseCase
+from app.application.red_teaming_usecase import RedTeamingUseCase
 from app.infrastructure.vector_store import ChromaDBStore
 from app.infrastructure.sql_store import SQLStore
 from app.infrastructure.groq_adapter import GroqAdapter
@@ -116,6 +117,10 @@ def get_studio_use_case() -> StudioUseCase:
 
 def get_app_generator_use_case() -> AppGeneratorUseCase:
     return AppGeneratorUseCase(vector_store=vector_store, llm_service=llm_service)
+
+
+def get_red_teaming_use_case() -> RedTeamingUseCase:
+    return RedTeamingUseCase(vector_store=vector_store, llm_service=llm_service)
 
 
 # ====================================================================
@@ -768,3 +773,36 @@ def delete_sandbox_app(
     if not success:
         raise HTTPException(status_code=404, detail="Không tìm thấy ứng dụng để xóa.")
     return {"success": True, "message": "Đã xóa ứng dụng thành công."}
+
+
+@router.get("/documents/content")
+def get_document_content(
+    filename: str,
+    notebook_id: str = "default",
+    use_case: RedTeamingUseCase = Depends(get_red_teaming_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint to retrieve the full text content of a document by filename.
+    """
+    _assert_notebook_access(notebook_id, user_id)
+    result = use_case.get_document_content(notebook_id=notebook_id, filename=filename)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result
+
+
+@router.post("/documents/red-team")
+def analyze_document_red_team(
+    request: RedTeamRequest,
+    use_case: RedTeamingUseCase = Depends(get_red_teaming_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint to perform fact-checking and bias detection (red-teaming) on a document.
+    """
+    _assert_notebook_access(request.notebook_id, user_id)
+    result = use_case.analyze(notebook_id=request.notebook_id, filename=request.filename, provider=request.provider)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result

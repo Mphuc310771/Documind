@@ -739,6 +739,46 @@
         .file-item .status.success { color: var(--success); background: var(--success-bg); }
         .file-item .status.error { color: var(--error); background: var(--error-bg); }
         .file-item .status.loading { color: #00f0ff; background: rgba(0, 240, 255, 0.1); }
+        .red-team-factual {
+            background-color: rgba(239, 68, 68, 0.18);
+            border-bottom: 2px dotted #ef4444;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+        .red-team-factual:hover {
+            background-color: rgba(239, 68, 68, 0.3);
+        }
+        .red-team-unsupported {
+            background-color: rgba(234, 179, 8, 0.18);
+            border-bottom: 2px dotted #eab308;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+        .red-team-unsupported:hover {
+            background-color: rgba(234, 179, 8, 0.3);
+        }
+        .red-team-badge {
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 2px 5px;
+            border-radius: 4px;
+            margin-right: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+        .red-team-badge.factual {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        .red-team-badge.unsupported {
+            color: #eab308;
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.2);
+        }
         .btn-delete-file {
             background: none;
             border: none;
@@ -2733,6 +2773,8 @@
 
     let selectedFiles = [];
     let uploadedFiles = [];
+    let activeDocContent = "";
+    let redTeamCache = {};
 
     // ===== Notebook Switcher State & Management =====
     let notebooks = [];
@@ -4085,6 +4127,11 @@
                 : '📄';
             const el = document.createElement('div');
             el.className = 'file-item';
+            el.style.cursor = 'pointer';
+            el.onclick = (e) => {
+                if (e.target.closest('.btn-delete-file')) return;
+                openDocumentViewer(file.name);
+            };
             el.innerHTML = `
                 <span class="icon">${icon}</span>
                 <span class="name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
@@ -5409,6 +5456,252 @@
             listContainer.innerHTML = `<div style="color:var(--error); font-size:0.8rem; text-align:center; padding:10px;">Lỗi tải ứng dụng hộp cát.</div>`;
         }
     }
+
+    // ===== Interactive Document Viewer & Red-Teaming (Fact/Bias Detector) =====
+    window.openDocumentViewer = async function(filename) {
+        const overlay = document.getElementById('studioModalOverlay');
+        const content = document.getElementById('studioModalContent');
+        if (!overlay || !content) return;
+
+        setStudioModalMode('graphrag'); // Make modal wide
+        overlay.classList.add('active');
+
+        // Loading state
+        content.innerHTML = `
+            <div style="padding: 40px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-family:'Plus Jakarta Sans', sans-serif; text-align:center; min-height:300px;">
+                <div class="spinner" style="width:48px; height:48px; border:4px solid rgba(255,255,255,0.1); border-top:4px solid var(--accent); border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <h3 style="margin:0; font-size:1.2rem; color:var(--text-primary);">Đang tải tài liệu...</h3>
+            </div>
+        `;
+
+        try {
+            const res = await fetch(`/documents/content?filename=${encodeURIComponent(filename)}&notebook_id=${currentNotebookId}`);
+            if (!res.ok) throw new Error("Không thể tải nội dung tài liệu.");
+            const data = await res.json();
+            
+            activeDocContent = data.content || "";
+
+            // Render view
+            content.innerHTML = `
+                <div style="font-family:'Plus Jakarta Sans', sans-serif; height: 85vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink: 0; padding-bottom: 8px; border-bottom: 1px solid var(--border-glass);">
+                        <div style="min-width:0; flex:1; padding-right:12px;">
+                            <h3 style="font-size:1.2rem; font-weight:800; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="📄 ${escapeHtml(filename)}">📄 ${escapeHtml(filename)}</h3>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:16px; flex-shrink:0;">
+                            <!-- Red-Teaming Toggle Switch -->
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--text-secondary);">
+                                <input type="checkbox" id="redTeamToggle" onchange="toggleRedTeaming('${escapeHtml(filename)}')" style="width:16px; height:16px; accent-color:var(--accent);">
+                                🔍 Giám Định Sự Thật & Thiên Kiến
+                            </label>
+                            <button onclick="closeStudioModal()" class="btn-action" style="padding:8px 20px; font-size:0.8rem; background:rgba(255,255,255,0.08); color:var(--text-primary); margin:0; border-radius:6px; border:1px solid var(--border-glass); font-weight:700;">Đóng</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; flex:1; min-height:0;">
+                        <!-- Left Pane: Document Text Content -->
+                        <div id="docViewerBody" style="background:var(--bg-secondary); border:1px solid var(--border-glass); border-radius:8px; padding:20px; overflow-y:auto; font-size:0.9rem; line-height:1.7; color:var(--text-secondary); white-space:pre-wrap; font-family:'Inter', sans-serif;">${escapeHtml(activeDocContent)}</div>
+                        
+                        <!-- Right Pane: Fact-Checking / Red-Teaming Sidebar -->
+                        <div id="redTeamSidebar" style="background:rgba(255,255,255,0.01); border:1px solid var(--border-glass); border-radius:8px; padding:16px; display:flex; flex-direction:column; gap:12px; overflow-y:auto;">
+                            <div style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin:auto 0; padding:20px;">
+                                Bật tính năng <strong>🔍 Giám Định Sự Thật & Thiên Kiến</strong> ở góc trên bên phải để AI rà soát và phát hiện lỗi sự thật hoặc nhận định chủ quan trong văn bản.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+        } catch (err) {
+            showNotification(err.message, 'error');
+            closeStudioModal();
+        }
+    };
+
+    window.toggleRedTeaming = async function(filename) {
+        const checkbox = document.getElementById('redTeamToggle');
+        const sidebar = document.getElementById('redTeamSidebar');
+        const docBody = document.getElementById('docViewerBody');
+        if (!checkbox || !sidebar || !docBody) return;
+
+        const enabled = checkbox.checked;
+        if (!enabled) {
+            // Restore plain text
+            docBody.innerHTML = escapeHtml(activeDocContent);
+            sidebar.innerHTML = `
+                <div style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin:auto 0; padding:20px;">
+                    Bật tính năng <strong>🔍 Giám Định Sự Thật & Thiên Kiến</strong> ở góc trên bên phải để AI rà soát và phát hiện lỗi sự thật hoặc nhận định chủ quan trong văn bản.
+                </div>
+            `;
+            return;
+        }
+
+        // If enabled, check cache
+        if (redTeamCache[filename]) {
+            renderRedTeamReport(filename, redTeamCache[filename]);
+            return;
+        }
+
+        // Otherwise fetch analysis
+        sidebar.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; margin:auto 0; padding:20px; text-align:center; font-family:'Plus Jakarta Sans', sans-serif;">
+                <div class="spinner" style="width:28px; height:28px; border:3px solid rgba(255,255,255,0.1); border-top:3px solid var(--accent); border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <div style="font-size:0.8rem; color:var(--text-primary); font-weight:700;">Đang kiểm định tài liệu...</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.4;">AI đang rà soát dữ liệu khoa học, đối chiếu chéo thông tin trên web và các tài liệu khác.</div>
+            </div>
+        `;
+
+        try {
+            const providerEl = document.getElementById('apiProvider');
+            const provider = providerEl ? providerEl.value : 'auto';
+
+            const res = await fetch('/documents/red-team', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notebook_id: currentNotebookId, filename: filename, provider: provider })
+            });
+
+            if (!res.ok) throw new Error("Lỗi khi phân tích tài liệu");
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || "Kiểm định thất bại");
+
+            redTeamCache[filename] = data.findings;
+            renderRedTeamReport(filename, data.findings);
+
+        } catch (err) {
+            showNotification(err.message, 'error');
+            checkbox.checked = false;
+            sidebar.innerHTML = `
+                <div style="text-align:center; color:var(--error); font-size:0.8rem; margin:auto 0; padding:20px;">
+                    Lỗi phân tích: ${escapeHtml(err.message)}
+                </div>
+            `;
+        }
+    };
+
+    function renderRedTeamReport(filename, findings) {
+        const sidebar = document.getElementById('redTeamSidebar');
+        const docBody = document.getElementById('docViewerBody');
+        if (!sidebar || !docBody) return;
+
+        // 1. Highlight document body text
+        let highlightedText = escapeHtml(activeDocContent);
+        
+        if (findings && findings.length > 0) {
+            // Sort findings by text length descending to avoid nested matching issues
+            const sortedFindings = [...findings].sort((a, b) => b.text.length - a.text.length);
+            
+            sortedFindings.forEach((finding) => {
+                const rawText = finding.text;
+                if (!rawText) return;
+                const escapedPhrase = escapeHtml(rawText);
+                
+                // Find index of finding in original findings array to map focus click
+                const origIdx = findings.findIndex(f => f.text === rawText);
+                
+                const highlightClass = finding.category === 'factual_error' ? 'red-team-factual' : 'red-team-unsupported';
+                const highlightHtml = `<span class="${highlightClass}" id="redteam-hl-${origIdx}" onclick="focusFinding(${origIdx})">${escapedPhrase}</span>`;
+                
+                highlightedText = highlightedText.split(escapedPhrase).join(highlightHtml);
+            });
+        }
+        
+        docBody.innerHTML = highlightedText;
+
+        // 2. Render sidebar findings list
+        if (!findings || findings.length === 0) {
+            sidebar.innerHTML = `
+                <div style="text-align:center; color:var(--success); font-size:0.85rem; margin:auto 0; padding:20px; font-weight:700; font-family:'Plus Jakarta Sans', sans-serif;">
+                    🎉 Không phát hiện lỗi sự thật hay nhận định thiếu căn cứ nào! Tài liệu có độ chính xác cao.
+                </div>
+            `;
+            return;
+        }
+
+        const factualErrors = findings.filter(f => f.category === 'factual_error');
+        const unsupportedClaims = findings.filter(f => f.category === 'unsupported_claim');
+
+        sidebar.innerHTML = `
+            <div style="font-family:'Plus Jakarta Sans', sans-serif; display:flex; flex-direction:column; gap:12px; height:100%;">
+                <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); border-bottom:1px solid var(--border-glass); padding-bottom:8px;">
+                    📊 KẾT QUẢ RÀ SOÁT
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <div style="flex:1; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); padding:8px; border-radius:6px; text-align:center;">
+                        <div style="font-size:1.1rem; font-weight:800; color:#ef4444;">${factualErrors.length}</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Lỗi sự thật</div>
+                    </div>
+                    <div style="flex:1; background:rgba(234, 179, 8, 0.1); border:1px solid rgba(234, 179, 8, 0.2); padding:8px; border-radius:6px; text-align:center;">
+                        <div style="font-size:1.1rem; font-weight:800; color:#eab308;">${unsupportedClaims.length}</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Chủ quan</div>
+                    </div>
+                </div>
+                
+                <div id="findingsScrollContainer" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:4px;">
+                    ${findings.map((f, idx) => {
+                        const isFactual = f.category === 'factual_error';
+                        const badgeText = isFactual ? 'Lỗi sự thật' : 'Nhận định chủ quan';
+                        const badgeClass = isFactual ? 'factual' : 'unsupported';
+                        const borderStyle = isFactual ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(234,179,8,0.2)';
+                        const bgStyle = isFactual ? 'rgba(239,68,68,0.03)' : 'rgba(234,179,8,0.03)';
+                        
+                        return `
+                            <div class="finding-card" id="finding-card-${idx}" onclick="focusFinding(${idx})" style="padding:10px; background:${bgStyle}; border:${borderStyle}; border-radius:6px; cursor:pointer; transition:var(--transition); font-size:0.8rem;">
+                                <div style="display:flex; align-items:center; margin-bottom:6px;">
+                                    <span class="red-team-badge ${badgeClass}">${badgeText}</span>
+                                </div>
+                                <div style="font-weight:700; color:var(--text-primary); font-style:italic; margin-bottom:6px; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">"${escapeHtml(f.text)}"</div>
+                                <div class="finding-desc" style="color:var(--text-secondary); font-size:0.75rem; line-height:1.4; display:none; padding-top:6px; border-top:1px dashed var(--border-glass); margin-top:6px;">
+                                    ${escapeHtml(f.explanation)}
+                                    <div style="margin-top:8px; display:flex; justify-content:flex-end;">
+                                        <button onclick="googleVerify('${escapeHtml(f.text)}', event)" class="btn-action" style="padding:4px 8px; font-size:0.65rem; margin:0; border-radius:4px; font-weight:600;"><span style="font-size:0.85rem;">🌐</span> Tìm Google</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    window.focusFinding = function(idx) {
+        // 1. Highlight finding card in sidebar
+        const cards = document.querySelectorAll('#redTeamSidebar .finding-card');
+        cards.forEach((c, cIdx) => {
+            const isFactual = c.querySelector('.red-team-badge').classList.contains('factual');
+            c.style.background = isFactual ? 'rgba(239,68,68,0.03)' : 'rgba(234,179,8,0.03)';
+            c.querySelector('.finding-desc').style.display = cIdx === idx ? 'block' : 'none';
+        });
+
+        const activeCard = document.getElementById(`finding-card-${idx}`);
+        if (activeCard) {
+            const isFactual = activeCard.querySelector('.red-team-badge').classList.contains('factual');
+            activeCard.style.background = isFactual ? 'rgba(239,68,68,0.1)' : 'rgba(234,179,8,0.1)';
+            activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // 2. Highlight text in document viewer
+        const textHighlights = document.querySelectorAll('#docViewerBody span[id^="redteam-hl-"]');
+        textHighlights.forEach(hl => {
+            hl.style.filter = 'none';
+            hl.style.fontWeight = 'normal';
+            hl.style.backgroundColor = hl.classList.contains('red-team-factual') ? 'rgba(239, 68, 68, 0.18)' : 'rgba(234, 179, 8, 0.18)';
+        });
+
+        const activeHl = document.getElementById(`redteam-hl-${idx}`);
+        if (activeHl) {
+            activeHl.style.filter = 'brightness(1.2)';
+            activeHl.style.fontWeight = 'bold';
+            activeHl.style.backgroundColor = activeHl.classList.contains('red-team-factual') ? 'rgba(239, 68, 68, 0.35)' : 'rgba(234, 179, 8, 0.35)';
+            activeHl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
+
+    window.googleVerify = function(text, event) {
+        if (event) event.stopPropagation();
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(text)}`, '_blank');
+    };
 
     window.viewSandboxApp = async function(appId) {
         try {

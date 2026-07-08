@@ -88,3 +88,9 @@ class AppGenerateRequest(BaseModel):
     provider: str = "auto"
 
 
+class RedTeamRequest(BaseModel):
+    notebook_id: str = "default"
+    filename: str
+    provider: str = "auto"
+
+
