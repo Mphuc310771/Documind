@@ -2279,8 +2279,8 @@
         <div class="section-title">📂 Nguồn tài liệu</div>
         <div class="drop-zone" id="dropZone">
             <div class="drop-zone-icon">📁</div>
-            <div class="drop-zone-text">Kéo thả tệp vào đây<br>hoặc <span>nhấp để chọn</span><br><small style="color:var(--text-muted)">.txt, .pdf, .csv, .xlsx, .mp3, .mp4</small></div>
-            <input type="file" class="file-input" id="fileInput" accept=".txt,.pdf,.csv,.xlsx,.xls,.mp3,.mp4,.wav,.m4a" multiple>
+            <div class="drop-zone-text">Kéo thả tệp vào đây<br>hoặc <span>nhấp để chọn</span><br><small style="color:var(--text-muted)">.txt, .pdf, .doc, .docx, .csv, .xlsx, .mp3, .mp4, .png, .jpg</small></div>
+            <input type="file" class="file-input" id="fileInput" accept=".txt,.pdf,.doc,.docx,.csv,.xlsx,.xls,.mp3,.mp4,.wav,.m4a,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.webp" multiple>
         </div>
         <!-- Pending files list container -->
         <div id="pendingFileList" style="display:none; margin-top: 12px; background: var(--control-bg); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 12px; font-size: 0.8rem; box-shadow: var(--shadow-sm);">
@@ -2930,7 +2930,8 @@
         // 4. Load Files from Cache & Server
         try {
             const cachedFiles = localStorage.getItem(`uploaded_files_${currentNotebookId}`);
-            uploadedFiles = cachedFiles ? JSON.parse(cachedFiles) : [];
+            const parsed = cachedFiles ? JSON.parse(cachedFiles) : [];
+            uploadedFiles = Array.isArray(parsed) ? parsed : [];
         } catch (e) {
             uploadedFiles = [];
         }
@@ -3844,7 +3845,7 @@
                 const serverFiles = await res.json();
                 
                 // Merge serverFiles into existing uploadedFiles to keep local progress
-                const mergedFiles = [...uploadedFiles];
+                const mergedFiles = Array.isArray(uploadedFiles) ? [...uploadedFiles] : [];
                 serverFiles.forEach(sf => {
                     const idx = mergedFiles.findIndex(f => f.name === sf.name);
                     if (idx !== -1) {
@@ -4059,6 +4060,9 @@
     function renderUploadedFiles() {
         if (!fileList) return;
         fileList.innerHTML = '';
+        if (!Array.isArray(uploadedFiles)) {
+            uploadedFiles = [];
+        }
         uploadedFiles.forEach(file => {
             const lname = file.name.toLowerCase();
             const icon = lname.endsWith('.pdf') ? '📕'
@@ -4117,7 +4121,11 @@
             }
             
             // Remove from uploadedFiles array
-            uploadedFiles = uploadedFiles.filter(f => f.name !== name);
+            if (Array.isArray(uploadedFiles)) {
+                uploadedFiles = uploadedFiles.filter(f => f.name !== name);
+            } else {
+                uploadedFiles = [];
+            }
             
             // Save to localStorage
             try {
@@ -4135,6 +4143,7 @@
             showNotification(`Lỗi khi xóa tài liệu: ${err.message}`, 'error');
         }
     }
+    window.deleteDocument = deleteDocument;
 
     // ===== Notification Toast Helper =====
     function showNotification(message, type = 'success') {
@@ -4321,7 +4330,7 @@
     });
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-    const ALLOWED_UPLOAD_EXT = ['.txt', '.pdf', '.csv', '.xlsx', '.xls', '.mp3', '.mp4', '.wav', '.m4a'];
+    const ALLOWED_UPLOAD_EXT = ['.txt', '.pdf', '.doc', '.docx', '.csv', '.xlsx', '.xls', '.mp3', '.mp4', '.wav', '.m4a', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp', '.webp'];
     function handleFiles(files) {
         const newFiles = Array.from(files).filter(f =>
             ALLOWED_UPLOAD_EXT.some(ext => f.name.toLowerCase().endsWith(ext))
@@ -4337,7 +4346,7 @@
         if (selectedFiles.length > 0) {
             showNotification(`Đã thêm ${newFiles.length} file(s) vào hàng chờ.`, 'success');
         } else if (newFiles.length === 0 && files.length > 0) {
-            showNotification('Vui lòng chọn file .txt, .pdf, .csv, .xlsx, .mp3 hoặc .mp4 hợp lệ.', 'error');
+            showNotification('Vui lòng chọn file .txt, .pdf, .doc, .docx, .csv, .xlsx, .mp3, .mp4 hoặc file ảnh hợp lệ.', 'error');
         }
         renderPendingFiles();
     }
@@ -4383,45 +4392,64 @@
         btnUpload.disabled = true;
         btnUpload.innerHTML = '<div class="spinner"></div> Đang tải lên...';
 
-        const filesToUpload = [...selectedFiles];
-        const pendingContainer = document.getElementById('pendingFileList');
-        if (pendingContainer) pendingContainer.style.display = 'none';
+        try {
+            const filesToUpload = [...selectedFiles];
+            const pendingContainer = document.getElementById('pendingFileList');
+            if (pendingContainer) pendingContainer.style.display = 'none';
 
-        for (const file of filesToUpload) {
-            const formData = new FormData();
-            formData.append('file', file);
+            for (const file of filesToUpload) {
+                const formData = new FormData();
+                formData.append('file', file);
 
-            try {
-                const res = await fetch(`/upload?notebook_id=${currentNotebookId}`, { method: 'POST', body: formData });
-                const data = await res.json();
-                if (res.ok) {
-                    addFileItem(file.name, `✓ ${data.total_chunks} chunks`, 'success');
-                } else {
-                    addFileItem(file.name, '✗ Error', 'error');
+                try {
+                    const res = await fetch(`/upload?notebook_id=${currentNotebookId}`, { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (res.ok) {
+                        addFileItem(file.name, `✓ ${data.total_chunks} chunks`, 'success');
+                    } else {
+                        addFileItem(file.name, '✗ Error', 'error');
+                    }
+                } catch (err) {
+                    addFileItem(file.name, '✗ Network error', 'error');
                 }
-            } catch (err) {
-                addFileItem(file.name, '✗ Network error', 'error');
             }
-        }
 
-        showNotification('Tải lên và nhúng tài liệu thành công!', 'success');
-        btnUpload.innerHTML = '<span>⬆️</span> Tải tệp';
-        btnUpload.disabled = true;
-        selectedFiles = [];
-        fileInput.value = '';
-        renderPendingFiles();
-        showSuggestions();
-        await loadUploadedFilesFromServer();
-        refreshNotebookStats();
+            showNotification('Tải lên và nhúng tài liệu thành công!', 'success');
+            selectedFiles = [];
+            fileInput.value = '';
+            renderPendingFiles();
+            showSuggestions();
+            try {
+                await loadUploadedFilesFromServer();
+            } catch (e) {
+                console.error("Failed to load uploaded files", e);
+            }
+            try {
+                refreshNotebookStats();
+            } catch (e) {
+                console.error("Failed to refresh notebook stats", e);
+            }
+        } catch (globalErr) {
+            console.error("Global upload handler error:", globalErr);
+            showNotification('Có lỗi xảy ra trong quá trình tải lên.', 'error');
+        } finally {
+            btnUpload.innerHTML = '<span>⬆️</span> Tải tệp';
+            btnUpload.disabled = true;
+        }
     });
 
     function addFileItem(name, status, type) {
+        if (!Array.isArray(uploadedFiles)) {
+            uploadedFiles = [];
+        }
         if (!uploadedFiles.some(f => f.name === name)) {
             uploadedFiles.push({ name, status, type });
         } else {
             const existing = uploadedFiles.find(f => f.name === name);
-            existing.status = status;
-            existing.type = type;
+            if (existing) {
+                existing.status = status;
+                existing.type = type;
+            }
         }
         try {
             localStorage.setItem(`uploaded_files_${currentNotebookId}`, JSON.stringify(uploadedFiles));
@@ -4680,7 +4708,7 @@
             
             badgeWrapper.appendChild(badge);
             
-            if (cit.snippet) {
+            if (cit.snippet || cit.images) {
                 const snippetBox = document.createElement('div');
                 snippetBox.className = 'citation-snippet-box';
                 snippetBox.style.display = 'none';
@@ -4697,7 +4725,27 @@
                 snippetBox.style.border = '1px solid var(--border-glass)';
                 snippetBox.style.borderLeft = '3px solid var(--accent)';
                 snippetBox.style.boxShadow = 'var(--shadow)';
-                snippetBox.innerHTML = escapeHtml(cit.snippet);
+                
+                let textHtml = escapeHtml(cit.snippet || '');
+                let imagesHtml = '';
+                if (cit.images) {
+                    try {
+                        const imgUrls = JSON.parse(cit.images);
+                        if (Array.isArray(imgUrls) && imgUrls.length > 0) {
+                            imagesHtml = '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">' +
+                                imgUrls.map(url => `<img src="${url}" style="max-width:100%; max-height:200px; border-radius:4px; border:1px solid var(--border-glass); cursor:zoom-in;" onclick="event.stopPropagation(); window.open('${url}', '_blank');" title="Bấm để xem ảnh gốc">`).join('') +
+                                '</div>';
+                        }
+                    } catch (e) {
+                        const imgUrls = cit.images.split(',').filter(Boolean);
+                        if (imgUrls.length > 0) {
+                            imagesHtml = '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">' +
+                                imgUrls.map(url => `<img src="${url}" style="max-width:100%; max-height:200px; border-radius:4px; border:1px solid var(--border-glass); cursor:zoom-in;" onclick="event.stopPropagation(); window.open('${url}', '_blank');" title="Bấm để xem ảnh gốc">`).join('') +
+                                '</div>';
+                        }
+                    }
+                }
+                snippetBox.innerHTML = textHtml + imagesHtml;
                 
                 badge.onclick = () => {
                     const isOpen = snippetBox.style.display === 'block';
@@ -4729,6 +4777,7 @@
     }
 
     function renderTerminalOutput(parentEl, text) {
+        const isNearBottom = (messages.scrollHeight - messages.scrollTop - messages.clientHeight) < 100;
         let term = parentEl.querySelector('.terminal-block');
         if (!term) {
             term = document.createElement('pre');
@@ -4749,10 +4798,13 @@
         }
         const contentSpan = term.querySelector('.terminal-content');
         contentSpan.innerHTML += escapeHtml(text) + '\n';
-        messages.scrollTop = messages.scrollHeight;
+        if (isNearBottom) {
+            messages.scrollTop = messages.scrollHeight;
+        }
     }
 
     function renderAlertOutput(parentEl, text) {
+        const isNearBottom = (messages.scrollHeight - messages.scrollTop - messages.clientHeight) < 100;
         let alertBox = document.createElement('div');
         alertBox.style.background = '#3f1a1a';
         alertBox.style.border = '1px solid #7f1d1d';
@@ -4764,10 +4816,13 @@
         alertBox.style.fontWeight = '500';
         alertBox.innerHTML = `🚨 ${escapeHtml(text)}`;
         parentEl.appendChild(alertBox);
-        messages.scrollTop = messages.scrollHeight;
+        if (isNearBottom) {
+            messages.scrollTop = messages.scrollHeight;
+        }
     }
 
     function renderSuccessOutput(parentEl, text) {
+        const isNearBottom = (messages.scrollHeight - messages.scrollTop - messages.clientHeight) < 100;
         let successBox = document.createElement('div');
         successBox.style.background = '#143f2e';
         successBox.style.border = '1px solid #065f46';
@@ -4779,10 +4834,13 @@
         successBox.style.fontWeight = '500';
         successBox.innerHTML = `✅ ${escapeHtml(text)}`;
         parentEl.appendChild(successBox);
-        messages.scrollTop = messages.scrollHeight;
+        if (isNearBottom) {
+            messages.scrollTop = messages.scrollHeight;
+        }
     }
 
     function renderCodeChart(parentEl, imageUrl) {
+        const isNearBottom = (messages.scrollHeight - messages.scrollTop - messages.clientHeight) < 100;
         let img = parentEl.querySelector(`img[src="${imageUrl}"]`);
         if (!img) {
             img = document.createElement('img');
@@ -4794,7 +4852,9 @@
             img.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
             parentEl.appendChild(img);
         }
-        messages.scrollTop = messages.scrollHeight;
+        if (isNearBottom) {
+            messages.scrollTop = messages.scrollHeight;
+        }
     }
 
     function extractJSON(text) {
@@ -4845,8 +4905,29 @@
     }
 
     function normalizeQuizQuestions(questions) {
-        if (!Array.isArray(questions)) return null;
-        questions.forEach(q => {
+        if (!questions) return null;
+        let arr = null;
+        if (Array.isArray(questions)) {
+            arr = questions;
+        } else if (typeof questions === 'object') {
+            if (Array.isArray(questions.questions)) {
+                arr = questions.questions;
+            } else if (Array.isArray(questions.quiz)) {
+                arr = questions.quiz;
+            } else {
+                for (const key in questions) {
+                    if (Array.isArray(questions[key]) && questions[key].length > 0) {
+                        const first = questions[key][0];
+                        if (first && typeof first === 'object' && ('question' in first || 'q' in first)) {
+                            arr = questions[key];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (!arr) return null;
+        arr.forEach(q => {
             if (q) {
                 if (q.correct_answer !== undefined && q.answer === undefined) {
                     q.answer = q.correct_answer;
@@ -4856,10 +4937,11 @@
                 }
             }
         });
-        return questions.filter(q => q && q.question && q.options && q.answer !== undefined);
+        return arr.filter(q => q && q.question && q.options && q.answer !== undefined);
     }
 
     function renderMessageContent(el, rawText) {
+        const isNearBottom = (messages.scrollHeight - messages.scrollTop - messages.clientHeight) < 100;
         let cleanText = rawText.replace(/<tool_call[\s\S]*?<\/tool_call>/g, '');
         cleanText = cleanText.replace(/<tool_call[\s\S]*/g, '');
         cleanText = cleanText.replace(/function=[a-zA-Z_]+>.*/g, '');
@@ -4881,19 +4963,10 @@
 
         const parsedJson = extractJSON(cleanText);
         if (parsedJson) {
-            let rawQuestions = null;
-            if (Array.isArray(parsedJson)) {
-                rawQuestions = parsedJson;
-            } else if (parsedJson && Array.isArray(parsedJson.questions)) {
-                rawQuestions = parsedJson.questions;
-            }
-            
-            if (rawQuestions) {
-                const questions = normalizeQuizQuestions(rawQuestions);
-                if (questions && questions.length > 0) {
-                    renderInteractiveQuizWidget(el, questions);
-                    return;
-                }
+            const questions = normalizeQuizQuestions(parsedJson);
+            if (questions && questions.length > 0) {
+                renderInteractiveQuizWidget(el, questions);
+                return;
             }
         }
 
@@ -4970,7 +5043,9 @@
             }
         });
 
-        messages.scrollTop = messages.scrollHeight;
+        if (isNearBottom) {
+            messages.scrollTop = messages.scrollHeight;
+        }
     }
 
     // ===== Dynamic Agentic Quiz Widget inside Chat =====

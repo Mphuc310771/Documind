@@ -1,4 +1,11 @@
 import os
+# Limit CPU thread usage for math/deep learning libraries to prevent system freezes
+os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["MKL_NUM_THREADS"] = "2"
+os.environ["OPENBLAS_NUM_THREADS"] = "2"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "2"
+os.environ["NUMEXPR_NUM_THREADS"] = "2"
+
 import logging
 import asyncio
 from contextlib import asynccontextmanager

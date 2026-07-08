@@ -11,6 +11,7 @@ sentence-transformers
 chromadb
 pdfplumber
 PyPDF2
+python-docx
 langchain-text-splitters
 
 playwright

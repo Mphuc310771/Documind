@@ -68,7 +68,8 @@ class RAGUseCase:
                 citations.append({
                     "source": meta.get("source", "Unknown"),
                     "snippet": item.get("text", ""),
-                    "timestamp": meta.get("timestamp", "")
+                    "timestamp": meta.get("timestamp", ""),
+                    "images": meta.get("images", "")
                 })
             yield {"type": "citation", "content": citations}
 
@@ -96,7 +97,8 @@ class RAGUseCase:
                 citations.append({
                     "source": meta.get("source", "Unknown"),
                     "snippet": item.get("text", ""),
-                    "timestamp": meta.get("timestamp", "")
+                    "timestamp": meta.get("timestamp", ""),
+                    "images": meta.get("images", "")
                 })
             yield {"type": "citation", "content": citations}
             context = "\n\n".join([item["text"] for item in results])

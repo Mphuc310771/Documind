@@ -16,6 +16,12 @@ class ChromaDBStore:
 
         # Initialize SentenceTransformer embedding function
         logger.info(f"Loading embedding model: {model_name} ...")
+        try:
+            import torch
+            torch.set_num_threads(2)
+            logger.info("Set PyTorch CPU threads to 2 to prevent system freeze.")
+        except Exception as e:
+            logger.warning(f"Could not set PyTorch CPU thread count: {e}")
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=model_name
         )

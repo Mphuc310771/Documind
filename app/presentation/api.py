@@ -2,6 +2,7 @@ import re
 import json
 import logging
 import uuid
+import asyncio
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Header
 from fastapi.responses import StreamingResponse, Response
 from app.core.config import settings
@@ -211,7 +212,11 @@ def api_status():
 
 
 @router.post("/ask")
-def ask_question(request: QueryRequest, use_case: RAGUseCase = Depends(get_rag_use_case)):
+def ask_question(
+    request: QueryRequest,
+    use_case: RAGUseCase = Depends(get_rag_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
     """
     Endpoint to process a user query using Retrieval-Augmented Generation.
     Returns a stream of JSON messages (either citation metadata or response tokens)
@@ -237,7 +242,9 @@ async def upload_document(
     use_case: UploadUseCase = Depends(get_upload_use_case),
     data_use_case: DataUploadUseCase = Depends(get_data_upload_use_case),
     transcription_use_case: TranscriptionUseCase = Depends(get_transcription_use_case),
+    user_id: str | None = Depends(get_current_user_id)
 ):
+    _assert_notebook_access(notebook_id, user_id)
     """
     Endpoint to upload a document. Text/PDF are chunked into ChromaDB;
     tabular data (CSV/XLSX) is persisted for pandas analysis; audio/video
@@ -245,21 +252,46 @@ async def upload_document(
     """
     name = (file.filename or "").lower()
     audio_exts = ('.mp3', '.mp4', '.wav', '.m4a', '.mpeg', '.mpga', '.webm')
-    if not name.endswith(('.txt', '.pdf', '.csv', '.xlsx', '.xls') + audio_exts):
-        raise HTTPException(status_code=400, detail="Hỗ trợ .txt, .pdf, .csv, .xlsx, .mp3, .mp4, .wav, .m4a.")
+    image_exts = ('.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp', '.webp')
+    if not name.endswith(('.txt', '.pdf', '.doc', '.docx', '.csv', '.xlsx', '.xls') + audio_exts + image_exts):
+        raise HTTPException(status_code=400, detail="Hỗ trợ .txt, .pdf, .doc, .docx, .csv, .xlsx, .mp3, .mp4, .wav, .m4a, .png, .jpg, .jpeg.")
 
     try:
         await file.seek(0)
         file_content = await file.read()
         if name.endswith(audio_exts):
-            result = transcription_use_case.execute(file_content=file_content, filename=file.filename, notebook_id=notebook_id)
+            result = await asyncio.to_thread(
+                transcription_use_case.execute,
+                file_content,
+                file.filename,
+                notebook_id
+            )
             doc_type = "media"
         elif name.endswith(('.csv', '.xlsx', '.xls')):
-            result = data_use_case.execute(file_content=file_content, filename=file.filename, notebook_id=notebook_id)
+            result = await asyncio.to_thread(
+                data_use_case.execute,
+                file_content,
+                file.filename,
+                notebook_id
+            )
             doc_type = "dataset"
         else:
-            result = use_case.execute(file_content=file_content, filename=file.filename, notebook_id=notebook_id)
-            doc_type = "pdf" if name.endswith(".pdf") else "text"
+            result = await asyncio.to_thread(
+                use_case.execute,
+                file_content,
+                file.filename,
+                notebook_id
+            )
+            if name.endswith(".pdf"):
+                doc_type = "pdf"
+            elif name.endswith(".docx"):
+                doc_type = "docx"
+            elif name.endswith(".doc"):
+                doc_type = "doc"
+            elif name.endswith(image_exts):
+                doc_type = "image"
+            else:
+                doc_type = "text"
         try:
             sql_store.add_document(notebook_id, file.filename, doc_type, result.get("total_chunks", 0))
         except Exception as e:
@@ -273,7 +305,12 @@ async def upload_document(
 
 
 @router.post("/upload-url")
-async def upload_url(request: UploadURLRequest, use_case: UploadURLUseCase = Depends(get_upload_url_use_case)):
+async def upload_url(
+    request: UploadURLRequest,
+    use_case: UploadURLUseCase = Depends(get_upload_url_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(request.notebook_id, user_id)
     """
     Endpoint to download a Webpage URL or YouTube Video transcript,
     chunk it, and store embeddings in ChromaDB.
@@ -297,7 +334,14 @@ async def upload_url(request: UploadURLRequest, use_case: UploadURLUseCase = Dep
 
 
 @router.get("/generate-quiz")
-def generate_quiz(notebook_id: str = "default", chat_context: str | None = None, num_questions: int = 5, use_case: QuizGeneratorUseCase = Depends(get_quiz_use_case)):
+def generate_quiz(
+    notebook_id: str = "default",
+    chat_context: str | None = None,
+    num_questions: int = 5,
+    use_case: QuizGeneratorUseCase = Depends(get_quiz_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     """
     Endpoint to generate a multiple choice quiz (default 5 questions, 1-10) from document chunks.
     """
@@ -308,7 +352,12 @@ def generate_quiz(notebook_id: str = "default", chat_context: str | None = None,
 
 
 @router.get("/summarize")
-def summarize_document(notebook_id: str = "default", use_case: DocumentSummaryUseCase = Depends(get_summary_use_case)):
+def summarize_document(
+    notebook_id: str = "default",
+    use_case: DocumentSummaryUseCase = Depends(get_summary_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     """
     Endpoint to generate a concise summary from the uploaded documents.
     """
@@ -319,7 +368,13 @@ def summarize_document(notebook_id: str = "default", use_case: DocumentSummaryUs
 
 
 @router.get("/generate-graph")
-def generate_graph(notebook_id: str = "default", chat_context: str | None = None, use_case: GraphUseCase = Depends(get_graph_use_case)):
+def generate_graph(
+    notebook_id: str = "default",
+    chat_context: str | None = None,
+    use_case: GraphUseCase = Depends(get_graph_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     """
     Endpoint to generate a Mermaid.js visual mindmap from the uploaded documents.
     """
@@ -330,7 +385,13 @@ def generate_graph(notebook_id: str = "default", chat_context: str | None = None
 
 
 @router.get("/generate-knowledge-graph")
-def generate_knowledge_graph(notebook_id: str = "default", chat_context: str | None = None, use_case: KnowledgeGraphUseCase = Depends(get_knowledge_graph_use_case)):
+def generate_knowledge_graph(
+    notebook_id: str = "default",
+    chat_context: str | None = None,
+    use_case: KnowledgeGraphUseCase = Depends(get_knowledge_graph_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     """
     GraphRAG: extract entities + relationships into an interactive knowledge graph.
     """
@@ -341,7 +402,13 @@ def generate_knowledge_graph(notebook_id: str = "default", chat_context: str | N
 
 
 @router.delete("/delete-document")
-def delete_document(filename: str, notebook_id: str = "default", use_case: DeleteUseCase = Depends(get_delete_use_case)):
+def delete_document(
+    filename: str,
+    notebook_id: str = "default",
+    use_case: DeleteUseCase = Depends(get_delete_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     """
     Endpoint to delete all chunks of a document from ChromaDB.
     """
@@ -388,7 +455,11 @@ def delete_notebook(notebook_id: str, user_id: str | None = Depends(get_current_
 
 
 @router.get("/documents")
-def list_documents(notebook_id: str = "default"):
+def list_documents(
+    notebook_id: str = "default",
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     return sql_store.list_documents(notebook_id)
 
 
@@ -483,27 +554,43 @@ async def tts_speak(request: TtsSpeakRequest):
 
 
 @router.get("/chat-history")
-def get_chat_history(notebook_id: str = "default"):
+def get_chat_history(
+    notebook_id: str = "default",
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     return sql_store.get_chat_messages(notebook_id)
 
 
 @router.post("/chat-history")
-def add_chat_message(request: ChatMessageRequest):
+def add_chat_message(
+    request: ChatMessageRequest,
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(request.notebook_id, user_id)
     sql_store.add_chat_message(request.notebook_id, request.role, request.content, request.citations)
     return {"success": True}
 
 
 @router.delete("/chat-history")
-def clear_chat_history(notebook_id: str = "default"):
+def clear_chat_history(
+    notebook_id: str = "default",
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     sql_store.clear_chat(notebook_id)
     return {"success": True, "notebook_id": notebook_id}
 
 
 @router.get("/notebook-stats")
-def get_notebook_stats(notebook_id: str = "default"):
+def get_notebook_stats(
+    notebook_id: str = "default",
+    user_id: str | None = Depends(get_current_user_id)
+):
     """
     Dashboard metrics: document count, chunk count, and estimated context size.
     """
+    _assert_notebook_access(notebook_id, user_id)
     try:
         results = vector_store.collection.get(
             where={"notebook_id": notebook_id},
@@ -531,7 +618,11 @@ def get_notebook_stats(notebook_id: str = "default"):
 
 
 @router.get("/uploaded-files")
-def get_uploaded_files(notebook_id: str = "default"):
+def get_uploaded_files(
+    notebook_id: str = "default",
+    user_id: str | None = Depends(get_current_user_id)
+):
+    _assert_notebook_access(notebook_id, user_id)
     """
     Get the list of all unique document names currently in ChromaDB (excluding screen_capture) for this notebook.
     """
@@ -560,10 +651,15 @@ def get_uploaded_files(notebook_id: str = "default"):
 
 
 @router.post("/generate-podcast")
-async def generate_podcast(request: PodcastGenerateRequest, use_case: PodcastUseCase = Depends(get_podcast_use_case)):
+async def generate_podcast(
+    request: PodcastGenerateRequest,
+    use_case: PodcastUseCase = Depends(get_podcast_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
     """
     Generate an audio podcast briefing dialogue script from current documents.
     """
+    _assert_notebook_access(request.notebook_id, user_id)
     result = await use_case.execute(
         provider=request.provider, 
         notebook_id=request.notebook_id, 
@@ -575,10 +671,15 @@ async def generate_podcast(request: PodcastGenerateRequest, use_case: PodcastUse
 
 
 @router.post("/generate-slides")
-def generate_slides(request: SlideGenerateRequest, use_case: SlideGeneratorUseCase = Depends(get_slide_use_case)):
+def generate_slides(
+    request: SlideGenerateRequest,
+    use_case: SlideGeneratorUseCase = Depends(get_slide_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
     """
     Generate interactive presentation slide content (JSON deck) from documents.
     """
+    _assert_notebook_access(request.notebook_id, user_id)
     result = use_case.execute(
         provider=request.provider,
         notebook_id=request.notebook_id,
@@ -603,10 +704,15 @@ def synthesize_notes(request: SynthesizeNotesRequest, use_case: SynthesisUseCase
 
 
 @router.post("/studio/generate")
-def studio_generate(request: StudioGenerateRequest, use_case: StudioUseCase = Depends(get_studio_use_case)):
+def studio_generate(
+    request: StudioGenerateRequest,
+    use_case: StudioUseCase = Depends(get_studio_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
     """
     Generate Studio content (flashcards, FAQ, timeline, study guide, briefing) from documents.
     """
+    _assert_notebook_access(request.notebook_id, user_id)
     result = use_case.execute(content_type=request.content_type, provider=request.provider, notebook_id=request.notebook_id)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("message"))

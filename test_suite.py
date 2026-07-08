@@ -67,6 +67,8 @@ class TestDistributedRAGHub(unittest.TestCase):
             "plt.show()\n"
         )
         res = sandbox.execute(code)
+        if not res["success"]:
+            print("[DEBUG] Sandbox execution failed! res =", res)
         self.assertTrue(res["success"])
         self.assertIn("Hello Sandbox", res["stdout"])
         self.assertGreater(len(res["charts"]), 0)
