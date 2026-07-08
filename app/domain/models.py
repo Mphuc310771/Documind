@@ -82,3 +82,9 @@ class UploadURLRequest(BaseModel):
         return value
 
 
+class AppGenerateRequest(BaseModel):
+    notebook_id: str = "default"
+    app_prompt: str
+    provider: str = "auto"
+
+

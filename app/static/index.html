@@ -738,6 +738,7 @@
         .file-item .status { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .file-item .status.success { color: var(--success); background: var(--success-bg); }
         .file-item .status.error { color: var(--error); background: var(--error-bg); }
+        .file-item .status.loading { color: #00f0ff; background: rgba(0, 240, 255, 0.1); }
         .btn-delete-file {
             background: none;
             border: none;
@@ -2291,7 +2292,7 @@
             <div id="pendingItems" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto; padding-right:4px;"></div>
         </div>
         <div style="display:flex; gap:10px; margin-top: 12px; margin-bottom: 8px; width:100%;">
-            <button class="btn-upload" id="btnUpload" disabled style="flex:1; margin:0;"><span>⬆️</span> Tải tệp</button>
+            <button class="btn-upload" id="btnUpload" style="flex:1; margin:0;"><span>⬆️</span> Tải tệp</button>
             <button class="btn-upload" id="btnUploadURL" onclick="openUploadURLModal()" style="flex:1; background:linear-gradient(135deg, #00f0ff 0%, #3b82f6 100%); color:white; margin:0;"><span>🔗</span> Thêm URL</button>
         </div>
         <div class="section-title" style="margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
@@ -2384,6 +2385,18 @@
             <div class="studio-card" id="studio-card-timeline" onclick="studioAction('timeline')"><span class="sc-icon">📅</span>Dòng Sự Kiện</div>
             <div class="studio-card" id="studio-card-summary" onclick="studioAction('summary')"><span class="sc-icon">📊</span>Tóm Tắt Ý Chính</div>
             <div class="studio-card" id="studio-card-slides" onclick="studioAction('slides')"><span class="sc-icon">🛝</span>Slides Presentation</div>
+            <div class="studio-card" id="studio-card-app_generator" onclick="openAppGeneratorPrompt()"><span class="sc-icon">🛠️</span>Tạo Ứng Dụng (SPA)</div>
+        </div>
+        <!-- Generated Sandbox Apps Section -->
+        <div class="studio-header" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-glass);">
+            <h3>HỘP CÁT ỨNG DỤNG</h3>
+        </div>
+        <div id="sandboxAppsContainer" style="padding: 0 16px 20px;">
+            <div id="sandboxAppsList" style="display:flex; flex-direction:column; gap:8px;">
+                <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:12px; border: 1px dashed var(--border-glass); border-radius: var(--radius-sm);">
+                    Chưa có ứng dụng nào được tạo. Nhấp nút "Tạo Ứng Dụng (SPA)" ở trên để bắt đầu!
+                </div>
+            </div>
         </div>
 
         <!-- Audio Player Component -->
@@ -2938,6 +2951,7 @@
         renderUploadedFiles();
         loadUploadedFilesFromServer();
         refreshNotebookStats();
+        loadSandboxApps();
     }
 
     async function refreshNotebookStats() {
@@ -4330,113 +4344,64 @@
     });
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
+    btnUpload.addEventListener('click', () => fileInput.click());
+
     const ALLOWED_UPLOAD_EXT = ['.txt', '.pdf', '.doc', '.docx', '.csv', '.xlsx', '.xls', '.mp3', '.mp4', '.wav', '.m4a', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp', '.webp'];
-    function handleFiles(files) {
+    async function handleFiles(files) {
         const newFiles = Array.from(files).filter(f =>
             ALLOWED_UPLOAD_EXT.some(ext => f.name.toLowerCase().endsWith(ext))
         );
 
-        newFiles.forEach(f => {
-            if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
-                selectedFiles.push(f);
-            }
-        });
-
-        btnUpload.disabled = selectedFiles.length === 0;
-        if (selectedFiles.length > 0) {
-            showNotification(`Đã thêm ${newFiles.length} file(s) vào hàng chờ.`, 'success');
-        } else if (newFiles.length === 0 && files.length > 0) {
+        if (newFiles.length === 0 && files.length > 0) {
             showNotification('Vui lòng chọn file .txt, .pdf, .doc, .docx, .csv, .xlsx, .mp3, .mp4 hoặc file ảnh hợp lệ.', 'error');
-        }
-        renderPendingFiles();
-    }
-
-    function renderPendingFiles() {
-        const container = document.getElementById('pendingFileList');
-        const itemsContainer = document.getElementById('pendingItems');
-        if (!container || !itemsContainer) return;
-
-        if (selectedFiles.length === 0) {
-            container.style.display = 'none';
-            itemsContainer.innerHTML = '';
             return;
         }
 
-        container.style.display = 'block';
-        itemsContainer.innerHTML = selectedFiles.map((file, idx) => `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:rgba(255, 255, 255, 0.04); border-radius:6px; border:1px solid var(--border-glass);">
-                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:160px; color:var(--text-primary); font-weight:500; font-size:0.75rem;" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
-                <button type="button" onclick="removePendingFile(${idx})" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem; padding:0 4px; line-height:1; transition:color 0.2s;" onmouseover="this.style.color='var(--error)'" onmouseout="this.style.color='var(--text-muted)'">✕</button>
-            </div>
-        `).join('');
+        if (newFiles.length === 0) return;
+
+        showNotification(`Đang bắt đầu tải lên ${newFiles.length} tệp...`, 'info');
+
+        for (const file of newFiles) {
+            // Thêm tệp vào danh sách với trạng thái Đang tải...
+            addFileItem(file.name, 'Đang tải...', 'loading');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`/upload?notebook_id=${currentNotebookId}`, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    addFileItem(file.name, `✓ ${data.total_chunks} chunks`, 'success');
+                    showNotification(`Đã tải lên thành công tệp ${file.name}!`, 'success');
+                } else {
+                    addFileItem(file.name, '✗ Lỗi', 'error');
+                    showNotification(`Lỗi xử lý tệp ${file.name}: ${data.detail || 'Lỗi server'}`, 'error');
+                }
+            } catch (err) {
+                addFileItem(file.name, '✗ Lỗi mạng', 'error');
+                showNotification(`Lỗi kết nối khi tải lên tệp ${file.name}`, 'error');
+            }
+        }
+
+        fileInput.value = '';
+        showSuggestions();
+        try {
+            await loadUploadedFilesFromServer();
+        } catch (e) {
+            console.error("Failed to load uploaded files", e);
+        }
+        try {
+            refreshNotebookStats();
+        } catch (e) {
+            console.error("Failed to refresh notebook stats", e);
+        }
     }
 
-    window.removePendingFile = function(idx) {
-        selectedFiles.splice(idx, 1);
-        btnUpload.disabled = selectedFiles.length === 0;
-        renderPendingFiles();
-        if (selectedFiles.length === 0) {
-            fileInput.value = '';
-        }
-    };
-
-    window.clearPendingFiles = function() {
-        selectedFiles = [];
-        btnUpload.disabled = true;
-        renderPendingFiles();
-        fileInput.value = '';
-    };
-
-    btnUpload.addEventListener('click', async () => {
-        if (selectedFiles.length === 0) return;
-        btnUpload.disabled = true;
-        btnUpload.innerHTML = '<div class="spinner"></div> Đang tải lên...';
-
-        try {
-            const filesToUpload = [...selectedFiles];
-            const pendingContainer = document.getElementById('pendingFileList');
-            if (pendingContainer) pendingContainer.style.display = 'none';
-
-            for (const file of filesToUpload) {
-                const formData = new FormData();
-                formData.append('file', file);
-
-                try {
-                    const res = await fetch(`/upload?notebook_id=${currentNotebookId}`, { method: 'POST', body: formData });
-                    const data = await res.json();
-                    if (res.ok) {
-                        addFileItem(file.name, `✓ ${data.total_chunks} chunks`, 'success');
-                    } else {
-                        addFileItem(file.name, '✗ Error', 'error');
-                    }
-                } catch (err) {
-                    addFileItem(file.name, '✗ Network error', 'error');
-                }
-            }
-
-            showNotification('Tải lên và nhúng tài liệu thành công!', 'success');
-            selectedFiles = [];
-            fileInput.value = '';
-            renderPendingFiles();
-            showSuggestions();
-            try {
-                await loadUploadedFilesFromServer();
-            } catch (e) {
-                console.error("Failed to load uploaded files", e);
-            }
-            try {
-                refreshNotebookStats();
-            } catch (e) {
-                console.error("Failed to refresh notebook stats", e);
-            }
-        } catch (globalErr) {
-            console.error("Global upload handler error:", globalErr);
-            showNotification('Có lỗi xảy ra trong quá trình tải lên.', 'error');
-        } finally {
-            btnUpload.innerHTML = '<span>⬆️</span> Tải tệp';
-            btnUpload.disabled = true;
-        }
-    });
+    // Giữ lại các hàm window để không bị lỗi ReferenceError từ HTML
+    window.removePendingFile = function(idx) {};
+    window.clearPendingFiles = function() {};
+    function renderPendingFiles() {}
 
     function addFileItem(name, status, type) {
         if (!Array.isArray(uploadedFiles)) {
@@ -5297,6 +5262,211 @@
             }
         }
     }
+
+    // ===== Sandbox App Generation and Rendering =====
+    function openAppGeneratorPrompt() {
+        if (uploadedFiles.length === 0) {
+            showNotification("Vui lòng tải tài liệu lên trước khi tạo ứng dụng hộp cát!", "error");
+            return;
+        }
+
+        const providerEl = document.getElementById('apiProvider');
+        const provider = providerEl ? providerEl.value : 'auto';
+
+        const overlay = document.getElementById('studioModalOverlay');
+        const content = document.getElementById('studioModalContent');
+        if (!overlay || !content) return;
+        
+        overlay.classList.add('active');
+        content.innerHTML = `
+            <div style="padding: 24px; display:flex; flex-direction:column; gap:16px; font-family:'Plus Jakarta Sans', sans-serif;">
+                <h2 style="margin:0; font-size:1.3rem; color:var(--text-primary); display:flex; align-items:center; gap:8px;">🛠️ Lập trình Ứng dụng Hộp cát (SPA)</h2>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin:0; line-height:1.5;">Hệ thống sẽ tự động đọc tài liệu hiện tại và lập trình ra một ứng dụng web (HTML/CSS/JS) chạy trực tiếp trong hộp cát an toàn.</p>
+                
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:var(--text-secondary)">Bạn muốn lập trình ứng dụng gì?</label>
+                    <textarea id="appPromptInput" placeholder="Ví dụ: Một trò chơi Cờ tỷ phú Monopoly đẹp mắt, hỗ trợ 2-4 người chơi, có đổ xúc xắc, mua đất và tính tiền tự động..." style="width:100%; min-height:110px; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary); padding:12px; border-radius:8px; font-size:0.85rem; outline:none; resize:vertical; box-sizing:border-box; font-family:inherit;"></textarea>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top:8px;">
+                    <button class="btn-action" onclick="closeStudioModal()" style="background: transparent; border: 1px solid var(--border-glass); color: var(--text-secondary); margin: 0; padding: 8px 16px;">Hủy bỏ</button>
+                    <button class="btn-action" onclick="generateSandboxApp('${provider}')" style="margin:0; padding:8px 20px; background:var(--accent-gradient); color:#030712; font-weight:800;">Lập trình & Chạy 🚀</button>
+                </div>
+            </div>
+        `;
+    }
+
+    async function generateSandboxApp(provider) {
+        const promptInput = document.getElementById('appPromptInput');
+        if (!promptInput) return;
+        const appPrompt = promptInput.value.trim();
+        if (!appPrompt) {
+            showNotification("Vui lòng nhập mô tả ứng dụng muốn lập trình!", "error");
+            return;
+        }
+
+        const overlay = document.getElementById('studioModalOverlay');
+        const content = document.getElementById('studioModalContent');
+        if (!overlay || !content) return;
+
+        // Show loading state in modal
+        setStudioModalMode('graphrag'); // Make modal wide
+        content.innerHTML = `
+            <div style="padding: 40px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-family:'Plus Jakarta Sans', sans-serif; text-align:center; min-height:300px;">
+                <div class="spinner" style="width:48px; height:48px; border:4px solid rgba(255,255,255,0.1); border-top:4px solid var(--accent); border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <h3 style="margin:0; font-size:1.2rem; color:var(--text-primary);">Đang đọc tài liệu và viết mã nguồn ứng dụng...</h3>
+                <p style="color:var(--text-muted); font-size:0.85rem; max-width:400px; margin:0; line-height:1.5;">Trợ lý AI đang thiết kế giao diện (HTML/Tailwind), viết logic tính toán/trò chơi (Javascript) và kiểm tra tính tương thích. Quá trình này có thể mất từ 1-2 phút. Vui lòng giữ kết nối.</p>
+            </div>
+        `;
+
+        try {
+            const res = await fetch('/sandbox/generate-app', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notebook_id: currentNotebookId, app_prompt: appPrompt, provider: provider })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || "Không thể tạo ứng dụng từ tài liệu");
+            }
+
+            const resData = await res.json();
+            if (!resData.success) {
+                throw new Error(resData.message || "Tạo ứng dụng thất bại");
+            }
+
+            const app = resData.app;
+            showNotification(`Lập trình ứng dụng "${app.name}" thành công!`, 'success');
+
+            // Render iframe view in modal
+            content.innerHTML = `
+                <div style="font-family:'Plus Jakarta Sans', sans-serif; height: 85vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink: 0; padding-bottom: 8px; border-bottom: 1px solid var(--border-glass);">
+                        <div>
+                            <h3 style="font-size:1.2rem; font-weight:800; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">🛠️ ${escapeHtml(app.name)}</h3>
+                            <p style="font-size:0.75rem; color:var(--text-muted); margin:4px 0 0;">${escapeHtml(app.description)}</p>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <a href="${app.url}" target="_blank" class="btn-action" style="padding:8px 16px; font-size:0.8rem; background:rgba(255,255,255,0.08); color:var(--text-primary); text-decoration:none; margin:0; display:flex; align-items:center; gap:6px; border:1px solid var(--border-glass); border-radius:6px; font-weight:600;"><span style="font-size:1.1rem;">↗️</span> Mở Tab Mới</a>
+                            <button onclick="closeStudioModal()" class="btn-action" style="padding:8px 20px; font-size:0.8rem; background:var(--accent-gradient); color:#030712; margin:0; border-radius:6px; font-weight:800;">Đóng</button>
+                        </div>
+                    </div>
+                    <div style="flex:1; border:1px solid var(--border-glass); border-radius:8px; overflow:hidden; background:var(--bg-secondary);">
+                        <iframe src="${app.url}" style="width:100%; height:100%; border:none; background: #fff;" title="Sandbox App"></iframe>
+                    </div>
+                </div>
+            `;
+
+            // Reload the list of generated apps
+            loadSandboxApps();
+
+        } catch (err) {
+            showNotification(err.message, 'error');
+            // Restore generator prompt modal on error
+            openAppGeneratorPrompt();
+            // Restore default modal class (narrower)
+            setStudioModalMode('');
+        }
+    }
+
+    async function loadSandboxApps() {
+        const listContainer = document.getElementById('sandboxAppsList');
+        if (!listContainer) return;
+
+        try {
+            const res = await fetch(`/sandbox/list-apps?notebook_id=${currentNotebookId}`);
+            if (!res.ok) throw new Error("Không thể tải danh sách ứng dụng hộp cát");
+            const apps = await res.json();
+
+            if (apps.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:16px; border: 1px dashed var(--border-glass); border-radius: var(--radius-sm); background: rgba(255,255,255,0.01);">
+                        Chưa có ứng dụng nào được tạo. Nhấp nút "Tạo Ứng Dụng (SPA)" ở trên để bắt đầu!
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = apps.map(app => `
+                <div class="file-item" onclick="viewSandboxApp('${app.id}')" style="cursor:pointer; padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); border-radius: 8px; transition: var(--transition); display: flex; align-items: center; justify-content: space-between; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+                        <span class="icon" style="font-size:1.1rem;">🛠️</span>
+                        <div style="min-width:0; flex:1;">
+                            <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${escapeHtml(app.name)}">${escapeHtml(app.name)}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-top:2px;">${escapeHtml(app.prompt)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;" onclick="event.stopPropagation();">
+                        <a href="${app.url}" target="_blank" title="Mở trong tab mới" style="color:var(--text-muted); font-size:0.85rem; padding:4px; display:flex; align-items:center; justify-content:center; transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">↗️</a>
+                        <button onclick="deleteSandboxApp('${app.id}', event)" title="Xóa ứng dụng" style="background:none; border:none; color:rgba(239, 68, 68, 0.5); cursor:pointer; padding:4px; font-size:0.85rem; display:flex; align-items:center; justify-content:center; transition:color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='rgba(239, 68, 68, 0.5)'">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+
+        } catch (err) {
+            console.error("Error loading sandbox apps:", err);
+            listContainer.innerHTML = `<div style="color:var(--error); font-size:0.8rem; text-align:center; padding:10px;">Lỗi tải ứng dụng hộp cát.</div>`;
+        }
+    }
+
+    window.viewSandboxApp = async function(appId) {
+        try {
+            const res = await fetch(`/sandbox/list-apps?notebook_id=${currentNotebookId}`);
+            if (!res.ok) throw new Error();
+            const apps = await res.json();
+            const app = apps.find(a => a.id === appId);
+            if (!app) return;
+
+            const overlay = document.getElementById('studioModalOverlay');
+            const content = document.getElementById('studioModalContent');
+            if (!overlay || !content) return;
+
+            setStudioModalMode('graphrag'); // Make modal wide
+            overlay.classList.add('active');
+
+            content.innerHTML = `
+                <div style="font-family:'Plus Jakarta Sans', sans-serif; height: 85vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink: 0; padding-bottom: 8px; border-bottom: 1px solid var(--border-glass);">
+                        <div>
+                            <h3 style="font-size:1.2rem; font-weight:800; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">🛠️ ${escapeHtml(app.name)}</h3>
+                            <p style="font-size:0.75rem; color:var(--text-muted); margin:4px 0 0;">${escapeHtml(app.description)}</p>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <a href="${app.url}" target="_blank" class="btn-action" style="padding:8px 16px; font-size:0.8rem; background:rgba(255,255,255,0.08); color:var(--text-primary); text-decoration:none; margin:0; display:flex; align-items:center; gap:6px; border:1px solid var(--border-glass); border-radius:6px; font-weight:600;"><span style="font-size:1.1rem;">↗️</span> Mở Tab Mới</a>
+                            <button onclick="closeStudioModal()" class="btn-action" style="padding:8px 20px; font-size:0.8rem; background:var(--accent-gradient); color:#030712; margin:0; border-radius:6px; font-weight:800;">Đóng</button>
+                        </div>
+                    </div>
+                    <div style="flex:1; border:1px solid var(--border-glass); border-radius:8px; overflow:hidden; background:var(--bg-secondary);">
+                        <iframe src="${app.url}" style="width:100%; height:100%; border:none; background: #fff;" title="Sandbox App"></iframe>
+                    </div>
+                </div>
+            `;
+
+        } catch (err) {
+            showNotification("Không thể mở ứng dụng.", "error");
+        }
+    };
+
+    window.deleteSandboxApp = async function(appId, event) {
+        if (event) event.stopPropagation();
+        if (!confirm("Bạn có chắc chắn muốn xóa ứng dụng hộp cát này không?")) return;
+
+        try {
+            const res = await fetch(`/sandbox/delete-app/${appId}?notebook_id=${currentNotebookId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) throw new Error("Xóa thất bại");
+            
+            showNotification("Đã xóa ứng dụng thành công!", "success");
+            loadSandboxApps();
+        } catch (err) {
+            showNotification(err.message, 'error');
+        }
+    };
+
+    window.openAppGeneratorPrompt = openAppGeneratorPrompt;
+    window.generateSandboxApp = generateSandboxApp;
 
     function showPodcastSetupModal(provider) {
         const overlay = document.getElementById('studioModalOverlay');

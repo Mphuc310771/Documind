@@ -7,12 +7,13 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Header
 from fastapi.responses import StreamingResponse, Response
 from app.core.config import settings
 from app.infrastructure.auth import hash_password, verify_password, create_token, decode_token
-from app.domain.models import QueryRequest, SynthesizeNotesRequest, StudioGenerateRequest, PodcastGenerateRequest, SlideGenerateRequest, UploadURLRequest, NotebookCreateRequest, ChatMessageRequest, CanvasEditRequest, AuthRequest, QuickSummarizeRequest, TtsSpeakRequest
+from app.domain.models import QueryRequest, SynthesizeNotesRequest, StudioGenerateRequest, PodcastGenerateRequest, SlideGenerateRequest, UploadURLRequest, NotebookCreateRequest, ChatMessageRequest, CanvasEditRequest, AuthRequest, QuickSummarizeRequest, TtsSpeakRequest, AppGenerateRequest
 from app.infrastructure.tts_adapter import synthesize_speech, clean_tts_text
 from app.application.podcast_usecase import PodcastUseCase
 from app.application.synthesis_usecase import SynthesisUseCase
 from app.application.studio_usecase import StudioUseCase
 from app.application.slide_usecase import SlideGeneratorUseCase
+from app.application.app_generator_usecase import AppGeneratorUseCase
 from app.infrastructure.vector_store import ChromaDBStore
 from app.infrastructure.sql_store import SQLStore
 from app.infrastructure.groq_adapter import GroqAdapter
@@ -111,6 +112,10 @@ def get_synthesis_use_case() -> SynthesisUseCase:
 
 def get_studio_use_case() -> StudioUseCase:
     return StudioUseCase(vector_store=vector_store, llm_service=llm_service)
+
+
+def get_app_generator_use_case() -> AppGeneratorUseCase:
+    return AppGeneratorUseCase(vector_store=vector_store, llm_service=llm_service)
 
 
 # ====================================================================
@@ -717,3 +722,49 @@ def studio_generate(
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("message"))
     return result
+
+
+@router.post("/sandbox/generate-app")
+def generate_sandbox_app(
+    request: AppGenerateRequest,
+    use_case: AppGeneratorUseCase = Depends(get_app_generator_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint to generate an interactive, runnable SPA HTML page from documents in sandbox.
+    """
+    _assert_notebook_access(request.notebook_id, user_id)
+    result = use_case.execute(notebook_id=request.notebook_id, app_prompt=request.app_prompt, provider=request.provider)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result
+
+
+@router.get("/sandbox/list-apps")
+def list_sandbox_apps(
+    notebook_id: str = "default",
+    use_case: AppGeneratorUseCase = Depends(get_app_generator_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint to list all generated HTML sandbox apps for a specific notebook.
+    """
+    _assert_notebook_access(notebook_id, user_id)
+    return use_case.list_apps(notebook_id=notebook_id)
+
+
+@router.delete("/sandbox/delete-app/{app_id}")
+def delete_sandbox_app(
+    app_id: str,
+    notebook_id: str = "default",
+    use_case: AppGeneratorUseCase = Depends(get_app_generator_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint to delete a generated sandbox application.
+    """
+    _assert_notebook_access(notebook_id, user_id)
+    success = use_case.delete_app(app_id=app_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ứng dụng để xóa.")
+    return {"success": True, "message": "Đã xóa ứng dụng thành công."}
