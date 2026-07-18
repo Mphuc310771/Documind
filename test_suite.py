@@ -234,6 +234,49 @@ class TestDistributedRAGHub(unittest.TestCase):
         self.assertEqual(res["result"], "Study Guide Result")
         mock_llm.generate_answer.assert_called_once()
 
+    def test_red_teaming_use_case_chunking(self):
+        """
+        Tests RedTeamingUseCase with long content that triggers chunking.
+        Verifies LLM prompts are called and deduplication handles findings correctly.
+        """
+        mock_store = MagicMock()
+        mock_store.collection.get.return_value = {
+            "documents": ["Long document chunk 1", "Long document chunk 2"],
+            "metadatas": [{"chunk_index": 0}, {"chunk_index": 1}]
+        }
+        
+        mock_llm = MagicMock()
+        # Mocking two LLM calls (since there will be two chunks)
+        # Chunk 1 returns normal findings, Chunk 2 returns duplicate finding and a mismatch category
+        mock_llm.generate_answer.side_effect = [
+            # Call 1 JSON response
+            ['[\n  {\n    "text": "Trái Đất dẹt",\n    "category": "factual_error",\n    "explanation": "Trái Đất hình cầu dẹt hai cực.",\n    "confidence": 0.9\n  }\n]'],
+            # Call 2 JSON response (one duplicate text, one mismatch category)
+            ['[\n  {\n    "text": "Trái Đất dẹt",\n    "category": "factual_error",\n    "explanation": "Duplicate",\n    "confidence": 0.5\n  },\n  {\n    "text": "Nước sôi ở 0 độ",\n    "category": "context_mismatch",\n    "explanation": "Mâu thuẫn nhiệt độ sôi.",\n    "confidence": 0.95\n  }\n]']
+        ]
+        
+        from app.application.red_teaming_usecase import RedTeamingUseCase
+        use_case = RedTeamingUseCase(vector_store=mock_store, llm_service=mock_llm)
+        
+        # Test text long enough to trigger chunking (length > 8000)
+        # 9000 chars will be split into 2 chunks of 8000 chars due to overlap
+        long_content = "A" * 9000
+        
+        res = use_case.analyze(notebook_id="default", filename="test.txt", content=long_content)
+        
+        self.assertTrue(res["success"])
+        findings = res["findings"]
+        
+        # Deduplication should keep the first occurrence
+        self.assertEqual(len(findings), 2)
+        self.assertEqual(findings[0]["text"], "Trái Đất dẹt")
+        self.assertEqual(findings[0]["category"], "factual_error")
+        self.assertEqual(findings[0]["confidence"], 0.9)
+        
+        self.assertEqual(findings[1]["text"], "Nước sôi ở 0 độ")
+        self.assertEqual(findings[1]["category"], "context_mismatch")
+        self.assertEqual(findings[1]["confidence"], 0.95)
+
 
 if __name__ == "__main__":
     unittest.main()

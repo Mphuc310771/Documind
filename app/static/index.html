@@ -759,6 +759,16 @@
         .red-team-unsupported:hover {
             background-color: rgba(234, 179, 8, 0.3);
         }
+        .red-team-mismatch {
+            background-color: rgba(59, 130, 246, 0.18);
+            border-bottom: 2px dotted #3b82f6;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+        .red-team-mismatch:hover {
+            background-color: rgba(59, 130, 246, 0.3);
+        }
         .red-team-badge {
             font-size: 0.65rem;
             font-weight: 800;
@@ -778,6 +788,38 @@
             color: #eab308;
             background: rgba(234, 179, 8, 0.1);
             border: 1px solid rgba(234, 179, 8, 0.2);
+        }
+        .red-team-badge.mismatch {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .red-team-progress-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .red-team-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent) 0%, #3b82f6 100%);
+            transition: width 0.4s ease;
+        }
+        @keyframes slideInUp {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .finding-card {
+            animation: slideInUp 0.3s ease forwards;
         }
         .btn-delete-file {
             background: none;
@@ -5791,6 +5833,175 @@
         }
     };
 
+    // ===== Cache & Helpers for Red-Teaming =====
+    function getRedTeamCacheKey(filename) {
+        return `redteam_cache_${currentNotebookId}_${filename}`;
+    }
+
+    function getRedTeamCache(filename) {
+        if (redTeamCache[filename]) return redTeamCache[filename];
+        try {
+            const cached = localStorage.getItem(getRedTeamCacheKey(filename));
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                redTeamCache[filename] = parsed;
+                return parsed;
+            }
+        } catch (e) {
+            console.error("Lỗi đọc cache red team:", e);
+        }
+        return null;
+    }
+
+    function setRedTeamCache(filename, findings) {
+        redTeamCache[filename] = findings;
+        try {
+            localStorage.setItem(getRedTeamCacheKey(filename), JSON.stringify(findings));
+        } catch (e) {
+            console.error("Lỗi lưu cache red team:", e);
+        }
+    }
+
+    function highlightFindings(text, findings) {
+        if (!findings || findings.length === 0) {
+            return escapeHtml(text);
+        }
+
+        // Find all occurrences of each finding text in the original text
+        let matches = [];
+        findings.forEach((finding, idx) => {
+            const phrase = finding.text;
+            if (!phrase) return;
+            
+            let startPos = 0;
+            while (true) {
+                const index = text.indexOf(phrase, startPos);
+                if (index === -1) break;
+                
+                matches.push({
+                    start: index,
+                    end: index + phrase.length,
+                    findingIdx: idx,
+                    finding: finding
+                });
+                startPos = index + phrase.length;
+            }
+        });
+
+        // Sort matches by start position ascending. If starts are equal, sort by length descending.
+        matches.sort((a, b) => {
+            if (a.start !== b.start) {
+                return a.start - b.start;
+            }
+            return (b.end - b.start) - (a.end - a.start);
+        });
+
+        // Filter out overlapping ranges (keeping the first/longest/most prominent one)
+        let nonOverlapping = [];
+        let lastEnd = 0;
+        for (let i = 0; i < matches.length; i++) {
+            const m = matches[i];
+            if (m.start >= lastEnd) {
+                nonOverlapping.push(m);
+                lastEnd = m.end;
+            }
+        }
+
+        // Reconstruct the HTML
+        let html = "";
+        let lastIdx = 0;
+        nonOverlapping.forEach(m => {
+            // Add plain text before match
+            html += escapeHtml(text.substring(lastIdx, m.start));
+            
+            // Add highlighted match
+            const category = m.finding.category;
+            let highlightClass = 'red-team-factual';
+            if (category === 'unsupported_claim') {
+                highlightClass = 'red-team-unsupported';
+            } else if (category === 'context_mismatch') {
+                highlightClass = 'red-team-mismatch';
+            }
+            
+            html += `<span class="${highlightClass}" id="redteam-hl-${m.findingIdx}" onclick="focusFinding(${m.findingIdx})">${escapeHtml(text.substring(m.start, m.end))}</span>`;
+            
+            lastIdx = m.end;
+        });
+        
+        // Add remaining plain text
+        html += escapeHtml(text.substring(lastIdx));
+        return html;
+    }
+
+    // ===== Interactive Document Viewer & Red-Teaming (Fact/Bias Detector) =====
+    window.openDocumentViewer = async function(filename) {
+        const overlay = document.getElementById('studioModalOverlay');
+        const content = document.getElementById('studioModalContent');
+        if (!overlay || !content) return;
+
+        setStudioModalMode('graphrag'); // Make modal wide
+        overlay.classList.add('active');
+
+        // Loading state
+        content.innerHTML = `
+            <div style="padding: 40px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-family:'Plus Jakarta Sans', sans-serif; text-align:center; min-height:300px;">
+                <div class="spinner" style="width:48px; height:48px; border:4px solid rgba(255,255,255,0.1); border-top:4px solid var(--accent); border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <h3 style="margin:0; font-size:1.2rem; color:var(--text-primary);">Đang tải tài liệu...</h3>
+            </div>
+        `;
+
+        try {
+            const res = await fetch(`/documents/content?filename=${encodeURIComponent(filename)}&notebook_id=${currentNotebookId}`);
+            if (!res.ok) throw new Error("Không thể tải nội dung tài liệu.");
+            const data = await res.json();
+            
+            activeDocContent = data.content || "";
+
+            // Render view
+            content.innerHTML = `
+                <div style="font-family:'Plus Jakarta Sans', sans-serif; height: 85vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink: 0; padding-bottom: 8px; border-bottom: 1px solid var(--border-glass);">
+                        <div style="min-width:0; flex:1; padding-right:12px;">
+                            <h3 style="font-size:1.2rem; font-weight:800; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="📄 ${escapeHtml(filename)}">📄 ${escapeHtml(filename)}</h3>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:16px; flex-shrink:0;">
+                            <!-- Red-Teaming Toggle Switch -->
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--text-secondary);">
+                                <input type="checkbox" id="redTeamToggle" onchange="toggleRedTeaming('${escapeHtml(filename)}')" style="width:16px; height:16px; accent-color:var(--accent);">
+                                🔍 Giám Định Sự Thật & Thiên Kiến
+                            </label>
+                            <button onclick="closeStudioModal()" class="btn-action" style="padding:8px 20px; font-size:0.8rem; background:rgba(255,255,255,0.08); color:var(--text-primary); margin:0; border-radius:6px; border:1px solid var(--border-glass); font-weight:700;">Đóng</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; flex:1; min-height:0;">
+                        <!-- Left Pane: Document Text Content -->
+                        <div id="docViewerBody" style="background:var(--bg-secondary); border:1px solid var(--border-glass); border-radius:8px; padding:20px; overflow-y:auto; font-size:0.9rem; line-height:1.7; color:var(--text-secondary); white-space:pre-wrap; font-family:'Inter', sans-serif;">${escapeHtml(activeDocContent)}</div>
+                        
+                        <!-- Right Pane: Fact-Checking / Red-Teaming Sidebar -->
+                        <div id="redTeamSidebar" style="background:rgba(255,255,255,0.01); border:1px solid var(--border-glass); border-radius:8px; padding:16px; display:flex; flex-direction:column; gap:12px; overflow-y:auto;">
+                            <div style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin:auto 0; padding:20px;">
+                                Bật tính năng <strong>🔍 Giám Định Sự Thật & Thiên Kiến</strong> ở góc trên bên phải để AI rà soát và phát hiện lỗi sự thật hoặc nhận định chủ quan trong văn bản.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Auto load from cache if exists
+            const checkbox = document.getElementById('redTeamToggle');
+            const cachedFindings = getRedTeamCache(filename);
+            if (checkbox && cachedFindings) {
+                checkbox.checked = true;
+                renderRedTeamReport(filename, cachedFindings);
+            }
+
+        } catch (err) {
+            showNotification(err.message, 'error');
+            closeStudioModal();
+        }
+    };
+
     window.toggleRedTeaming = async function(filename) {
         const checkbox = document.getElementById('redTeamToggle');
         const sidebar = document.getElementById('redTeamSidebar');
@@ -5810,8 +6021,9 @@
         }
 
         // If enabled, check cache
-        if (redTeamCache[filename]) {
-            renderRedTeamReport(filename, redTeamCache[filename]);
+        const cachedFindings = getRedTeamCache(filename);
+        if (cachedFindings) {
+            renderRedTeamReport(filename, cachedFindings);
             return;
         }
 
@@ -5821,8 +6033,24 @@
                 <div class="spinner" style="width:28px; height:28px; border:3px solid rgba(255,255,255,0.1); border-top:3px solid var(--accent); border-radius:50%; animation:spin 1s linear infinite;"></div>
                 <div style="font-size:0.8rem; color:var(--text-primary); font-weight:700;">Đang kiểm định tài liệu...</div>
                 <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.4;">AI đang rà soát dữ liệu khoa học, đối chiếu chéo thông tin trên web và các tài liệu khác.</div>
+                <div class="red-team-progress-container">
+                    <div id="redTeamProgressBar" class="red-team-progress-bar"></div>
+                </div>
             </div>
         `;
+
+        // Start simulated progress bar
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            if (progress < 85) {
+                progress += Math.random() * 8 + 2;
+                if (progress > 85) progress = 85;
+                const bar = document.getElementById('redTeamProgressBar');
+                if (bar) {
+                    bar.style.width = `${progress}%`;
+                }
+            }
+        }, 300);
 
         try {
             const providerEl = document.getElementById('apiProvider');
@@ -5834,14 +6062,19 @@
                 body: JSON.stringify({ notebook_id: currentNotebookId, filename: filename, provider: provider })
             });
 
+            clearInterval(progressInterval);
+            const bar = document.getElementById('redTeamProgressBar');
+            if (bar) bar.style.width = '100%';
+
             if (!res.ok) throw new Error("Lỗi khi phân tích tài liệu");
             const data = await res.json();
             if (!data.success) throw new Error(data.message || "Kiểm định thất bại");
 
-            redTeamCache[filename] = data.findings;
+            setRedTeamCache(filename, data.findings);
             renderRedTeamReport(filename, data.findings);
 
         } catch (err) {
+            clearInterval(progressInterval);
             showNotification(err.message, 'error');
             checkbox.checked = false;
             sidebar.innerHTML = `
@@ -5858,28 +6091,7 @@
         if (!sidebar || !docBody) return;
 
         // 1. Highlight document body text
-        let highlightedText = escapeHtml(activeDocContent);
-        
-        if (findings && findings.length > 0) {
-            // Sort findings by text length descending to avoid nested matching issues
-            const sortedFindings = [...findings].sort((a, b) => b.text.length - a.text.length);
-            
-            sortedFindings.forEach((finding) => {
-                const rawText = finding.text;
-                if (!rawText) return;
-                const escapedPhrase = escapeHtml(rawText);
-                
-                // Find index of finding in original findings array to map focus click
-                const origIdx = findings.findIndex(f => f.text === rawText);
-                
-                const highlightClass = finding.category === 'factual_error' ? 'red-team-factual' : 'red-team-unsupported';
-                const highlightHtml = `<span class="${highlightClass}" id="redteam-hl-${origIdx}" onclick="focusFinding(${origIdx})">${escapedPhrase}</span>`;
-                
-                highlightedText = highlightedText.split(escapedPhrase).join(highlightHtml);
-            });
-        }
-        
-        docBody.innerHTML = highlightedText;
+        docBody.innerHTML = highlightFindings(activeDocContent, findings);
 
         // 2. Render sidebar findings list
         if (!findings || findings.length === 0) {
@@ -5893,35 +6105,64 @@
 
         const factualErrors = findings.filter(f => f.category === 'factual_error');
         const unsupportedClaims = findings.filter(f => f.category === 'unsupported_claim');
+        const contextMismatches = findings.filter(f => f.category === 'context_mismatch');
 
         sidebar.innerHTML = `
             <div style="font-family:'Plus Jakarta Sans', sans-serif; display:flex; flex-direction:column; gap:12px; height:100%;">
-                <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); border-bottom:1px solid var(--border-glass); padding-bottom:8px;">
-                    📊 KẾT QUẢ RÀ SOÁT
+                <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); border-bottom:1px solid var(--border-glass); padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📊 KẾT QUẢ RÀ SOÁT</span>
+                    <button onclick="exportRedTeamReport('${escapeHtml(filename)}')" class="btn-action" style="padding:4px 8px; font-size:0.65rem; margin:0; border-radius:4px; font-weight:700; background:rgba(255,255,255,0.06); border:1px solid var(--border-glass);">📥 Xuất báo cáo</button>
                 </div>
-                <div style="display:flex; gap:8px;">
-                    <div style="flex:1; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); padding:8px; border-radius:6px; text-align:center;">
-                        <div style="font-size:1.1rem; font-weight:800; color:#ef4444;">${factualErrors.length}</div>
-                        <div style="font-size:0.65rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Lỗi sự thật</div>
+                <div style="display:flex; gap:6px;">
+                    <div style="flex:1; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); padding:6px 4px; border-radius:6px; text-align:center;">
+                        <div style="font-size:1rem; font-weight:800; color:#ef4444;">${factualErrors.length}</div>
+                        <div style="font-size:0.55rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Sai sự thật</div>
                     </div>
-                    <div style="flex:1; background:rgba(234, 179, 8, 0.1); border:1px solid rgba(234, 179, 8, 0.2); padding:8px; border-radius:6px; text-align:center;">
-                        <div style="font-size:1.1rem; font-weight:800; color:#eab308;">${unsupportedClaims.length}</div>
-                        <div style="font-size:0.65rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Chủ quan</div>
+                    <div style="flex:1; background:rgba(234, 179, 8, 0.1); border:1px solid rgba(234, 179, 8, 0.2); padding:6px 4px; border-radius:6px; text-align:center;">
+                        <div style="font-size:1rem; font-weight:800; color:#eab308;">${unsupportedClaims.length}</div>
+                        <div style="font-size:0.55rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Chủ quan</div>
+                    </div>
+                    <div style="flex:1; background:rgba(59, 130, 246, 0.1); border:1px solid rgba(59, 130, 246, 0.2); padding:6px 4px; border-radius:6px; text-align:center;">
+                        <div style="font-size:1rem; font-weight:800; color:#3b82f6;">${contextMismatches.length}</div>
+                        <div style="font-size:0.55rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Mâu thuẫn</div>
                     </div>
                 </div>
                 
                 <div id="findingsScrollContainer" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:4px;">
                     ${findings.map((f, idx) => {
-                        const isFactual = f.category === 'factual_error';
-                        const badgeText = isFactual ? 'Lỗi sự thật' : 'Nhận định chủ quan';
-                        const badgeClass = isFactual ? 'factual' : 'unsupported';
-                        const borderStyle = isFactual ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(234,179,8,0.2)';
-                        const bgStyle = isFactual ? 'rgba(239,68,68,0.03)' : 'rgba(234,179,8,0.03)';
+                        let badgeText = 'Lỗi sự thật';
+                        let badgeClass = 'factual';
+                        let borderStyle = '1px solid rgba(239,68,68,0.2)';
+                        let bgStyle = 'rgba(239,68,68,0.03)';
+                        
+                        if (f.category === 'unsupported_claim') {
+                            badgeText = 'Nhận định chủ quan';
+                            badgeClass = 'unsupported';
+                            borderStyle = '1px solid rgba(234,179,8,0.2)';
+                            bgStyle = 'rgba(234,179,8,0.03)';
+                        } else if (f.category === 'context_mismatch') {
+                            badgeText = 'Mâu thuẫn thông tin';
+                            badgeClass = 'mismatch';
+                            borderStyle = '1px solid rgba(59,130,246,0.2)';
+                            bgStyle = 'rgba(59,130,246,0.03)';
+                        }
+
+                        const confVal = f.confidence !== undefined ? f.confidence : 0.7;
+                        let confColor = '#f59e0b';
+                        let confText = 'Vừa';
+                        if (confVal >= 0.8) {
+                            confColor = '#10b981';
+                            confText = 'Cao';
+                        } else if (confVal < 0.5) {
+                            confColor = '#ef4444';
+                            confText = 'Thấp';
+                        }
                         
                         return `
                             <div class="finding-card" id="finding-card-${idx}" onclick="focusFinding(${idx})" style="padding:10px; background:${bgStyle}; border:${borderStyle}; border-radius:6px; cursor:pointer; transition:var(--transition); font-size:0.8rem;">
-                                <div style="display:flex; align-items:center; margin-bottom:6px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
                                     <span class="red-team-badge ${badgeClass}">${badgeText}</span>
+                                    <span style="font-size:0.65rem; font-weight:700; color:${confColor}; background:${confColor}15; padding:1px 5px; border-radius:4px;">Độ tin cậy: ${confText} (${Math.round(confVal * 100)}%)</span>
                                 </div>
                                 <div style="font-weight:700; color:var(--text-primary); font-style:italic; margin-bottom:6px; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">"${escapeHtml(f.text)}"</div>
                                 <div class="finding-desc" style="color:var(--text-secondary); font-size:0.75rem; line-height:1.4; display:none; padding-top:6px; border-top:1px dashed var(--border-glass); margin-top:6px;">
@@ -5942,15 +6183,27 @@
         // 1. Highlight finding card in sidebar
         const cards = document.querySelectorAll('#redTeamSidebar .finding-card');
         cards.forEach((c, cIdx) => {
-            const isFactual = c.querySelector('.red-team-badge').classList.contains('factual');
-            c.style.background = isFactual ? 'rgba(239,68,68,0.03)' : 'rgba(234,179,8,0.03)';
+            const badge = c.querySelector('.red-team-badge');
+            let isFactual = badge.classList.contains('factual');
+            let isUnsupported = badge.classList.contains('unsupported');
+            let bg = 'rgba(59,130,246,0.03)';
+            if (isFactual) bg = 'rgba(239,68,68,0.03)';
+            else if (isUnsupported) bg = 'rgba(234,179,8,0.03)';
+
+            c.style.background = bg;
             c.querySelector('.finding-desc').style.display = cIdx === idx ? 'block' : 'none';
         });
 
         const activeCard = document.getElementById(`finding-card-${idx}`);
         if (activeCard) {
-            const isFactual = activeCard.querySelector('.red-team-badge').classList.contains('factual');
-            activeCard.style.background = isFactual ? 'rgba(239,68,68,0.1)' : 'rgba(234,179,8,0.1)';
+            const badge = activeCard.querySelector('.red-team-badge');
+            let isFactual = badge.classList.contains('factual');
+            let isUnsupported = badge.classList.contains('unsupported');
+            let bg = 'rgba(59,130,246,0.1)';
+            if (isFactual) bg = 'rgba(239,68,68,0.1)';
+            else if (isUnsupported) bg = 'rgba(234,179,8,0.1)';
+
+            activeCard.style.background = bg;
             activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
@@ -5959,14 +6212,26 @@
         textHighlights.forEach(hl => {
             hl.style.filter = 'none';
             hl.style.fontWeight = 'normal';
-            hl.style.backgroundColor = hl.classList.contains('red-team-factual') ? 'rgba(239, 68, 68, 0.18)' : 'rgba(234, 179, 8, 0.18)';
+            if (hl.classList.contains('red-team-factual')) {
+                hl.style.backgroundColor = 'rgba(239, 68, 68, 0.18)';
+            } else if (hl.classList.contains('red-team-unsupported')) {
+                hl.style.backgroundColor = 'rgba(234, 179, 8, 0.18)';
+            } else {
+                hl.style.backgroundColor = 'rgba(59, 130, 246, 0.18)';
+            }
         });
 
         const activeHl = document.getElementById(`redteam-hl-${idx}`);
         if (activeHl) {
             activeHl.style.filter = 'brightness(1.2)';
             activeHl.style.fontWeight = 'bold';
-            activeHl.style.backgroundColor = activeHl.classList.contains('red-team-factual') ? 'rgba(239, 68, 68, 0.35)' : 'rgba(234, 179, 8, 0.35)';
+            if (activeHl.classList.contains('red-team-factual')) {
+                activeHl.style.backgroundColor = 'rgba(239, 68, 68, 0.35)';
+            } else if (activeHl.classList.contains('red-team-unsupported')) {
+                activeHl.style.backgroundColor = 'rgba(234, 179, 8, 0.35)';
+            } else {
+                activeHl.style.backgroundColor = 'rgba(59, 130, 246, 0.35)';
+            }
             activeHl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     };
@@ -5974,6 +6239,42 @@
     window.googleVerify = function(text, event) {
         if (event) event.stopPropagation();
         window.open(`https://www.google.com/search?q=${encodeURIComponent(text)}`, '_blank');
+    };
+
+    window.exportRedTeamReport = function(filename) {
+        const findings = getRedTeamCache(filename);
+        if (!findings || findings.length === 0) return;
+        
+        let md = `# BÁO CÁO KIỂM ĐỊNH SỰ THẬT VÀ THIÊN KIẾN\n\n`;
+        md += `- **Tài liệu**: ${filename}\n`;
+        md += `- **Thời gian xuất**: ${new Date().toLocaleString('vi-VN')}\n\n`;
+        md += `## 1. TÓM TẮT KẾT QUẢ\n`;
+        md += `- **Tổng số phát hiện**: ${findings.length}\n`;
+        md += `  - Lỗi sự thật (Factual Error): ${findings.filter(f => f.category === 'factual_error').length}\n`;
+        md += `  - Nhận định chủ quan (Unsupported Claim): ${findings.filter(f => f.category === 'unsupported_claim').length}\n`;
+        md += `  - Mâu thuẫn thông tin (Context Mismatch): ${findings.filter(f => f.category === 'context_mismatch').length}\n\n`;
+        md += `## 2. CHI TIẾT CÁC PHÁT HIỆN\n\n`;
+        
+        findings.forEach((f, idx) => {
+            let catName = "Lỗi sự thật";
+            if (f.category === "unsupported_claim") catName = "Nhận định chủ quan";
+            if (f.category === "context_mismatch") catName = "Mâu thuẫn thông tin";
+            
+            md += `### Phát hiện ${idx + 1}: ${catName}\n`;
+            md += `> **Trích dẫn gốc trong tài liệu**:\n> "${f.text}"\n\n`;
+            md += `- **Độ tin cậy của phân tích**: ${Math.round(f.confidence * 100)}%\n`;
+            md += `- **Giải thích lý do**: ${f.explanation}\n\n`;
+            md += `---\n\n`;
+        });
+        
+        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Bao_cao_kiem_dinh_${filename.replace(/\.[^/.]+$/, "")}.md`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     window.viewSandboxApp = async function(appId) {

@@ -71,73 +71,134 @@ class RedTeamingUseCase:
                     return res
                 content = res.get("content")
 
-            # Limit content size for LLM call
-            analyze_text = content
-            if len(analyze_text) > 15000:
-                analyze_text = analyze_text[:15000]
+            if not content or not content.strip():
+                return {
+                    "success": True,
+                    "filename": filename,
+                    "findings": []
+                }
 
-            # 2. Formulate system and user prompts
-            system_prompt = (
-                "You are an expert fact-checker and critical red-teaming investigator. "
-                "Your job is to read the provided text and identify factual errors or unsupported claims. "
-                "Be objective, strict, and precise."
-            )
+            # Split into chunks of max 8000 characters with 1000 characters overlap
+            chunk_size = 8000
+            overlap = 1000
+            chunks = []
+            
+            if len(content) <= chunk_size:
+                chunks.append(content)
+            else:
+                start = 0
+                while start < len(content):
+                    end = start + chunk_size
+                    chunks.append(content[start:end])
+                    if end >= len(content):
+                        break
+                    start += chunk_size - overlap
 
-            query_prompt = (
-                f"Hãy đóng vai trò là một Thanh tra độc lập (Red-Teaming) để kiểm định sự thật và thiên kiến cho tài liệu sau.\n\n"
-                f"NỘI DUNG TÀI LIỆU:\n\"\"\"\n{analyze_text}\n\"\"\"\n\n"
-                f"NHIỆM VỤ:\n"
-                f"Phân tích tài liệu và phát hiện:\n"
-                f"1. **Factual Error (Lỗi sự thật)**: Các tuyên bố sai lệch thông tin, số liệu không khớp thực tế lịch sử/khoa học hoặc lỗi thời. Phân loại là 'factual_error'.\n"
-                f"2. **Unsupported Claim (Nhận định chủ quan)**: Nhận định phiến diện của tác giả, suy diễn cá nhân mà hoàn toàn không có số liệu, dẫn chứng, trích dẫn hay lập luận logic đi kèm. Phân loại là 'unsupported_claim'.\n\n"
-                f"Định dạng kết quả trả về là một mảng JSON chứa danh sách các điểm phát hiện, mỗi điểm gồm:\n"
-                f"- 'text': Chuỗi ký tự (câu hoặc cụm từ) chính xác xuất hiện trong tài liệu gốc bị lỗi.\n"
-                f"- 'category': Nhãn phân loại ('factual_error' hoặc 'unsupported_claim').\n"
-                f"- 'explanation': Giải thích chi tiết bằng tiếng Việt lý do tại sao câu này bị lỗi, cung cấp lập luận phản bác hoặc thông tin đúng cần có.\n\n"
-                f"Chỉ trả về chuỗi JSON thô dạng mảng, không bọc trong markdown block, không thêm bất kỳ văn bản giải thích nào khác."
-            )
+            # Cap chunks to avoid excessive API calls (max 5 chunks)
+            chunks = chunks[:5]
 
-            # 3. Call LLM Service
-            response_tokens = []
-            stream = self.llm_service.generate_answer(
-                context=analyze_text,
-                query=query_prompt,
-                system_prompt=system_prompt,
-                provider=provider
-            )
-            for token in stream:
-                response_tokens.append(token)
+            all_findings = []
+            seen_texts = set()
 
-            raw_response = "".join(response_tokens).strip()
+            for chunk_idx, analyze_text in enumerate(chunks):
+                # 2. Formulate system and user prompts
+                system_prompt = (
+                    "Bạn là một chuyên gia kiểm chứng thông tin (fact-checker) và nhà điều tra độc lập phản biện (red-teaming). "
+                    "Nhiệm vụ của bạn là đọc kỹ văn bản được cung cấp và phát hiện các lỗi sự thật, nhận định thiếu căn cứ, "
+                    "hoặc mâu thuẫn thông tin trong văn bản đó. Hãy phân tích khách quan, nghiêm ngặt và chính xác. "
+                    "Luôn trả về kết quả dưới dạng một danh sách JSON hợp lệ."
+                )
 
-            # Clean markdown code blocks if any
-            cleaned_response = raw_response
-            if cleaned_response.startswith("```"):
-                cleaned_response = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned_response)
-            if cleaned_response.endswith("```"):
-                cleaned_response = re.sub(r"\n?```$", "", cleaned_response)
-            cleaned_response = cleaned_response.strip()
+                query_prompt = (
+                    f"Hãy đóng vai trò là một Thanh tra độc lập (Red-Teaming) để kiểm định sự thật, nhận định và mâu thuẫn thông tin cho tài liệu sau.\n\n"
+                    f"NỘI DUNG PHÂN ĐOẠN (Đoạn {chunk_idx + 1}/{len(chunks)}):\n\"\"\"\n{analyze_text}\n\"\"\"\n\n"
+                    f"NHIỆM VỤ:\n"
+                    f"Phân tích đoạn văn bản trên và phát hiện:\n"
+                    f"1. **Factual Error (Lỗi sự thật)**: Các tuyên bố sai lệch thông tin, số liệu không khớp thực tế lịch sử/khoa học hoặc lỗi thời. Phân loại là 'factual_error'.\n"
+                    f"2. **Unsupported Claim (Nhận định chủ quan)**: Nhận định phiến diện của tác giả, suy diễn cá nhân mà hoàn toàn không có số liệu, dẫn chứng, trích dẫn hay lập luận logic đi kèm. Phân loại là 'unsupported_claim'.\n"
+                    f"3. **Context Mismatch (Mâu thuẫn thông tin)**: Các thông tin mâu thuẫn trực tiếp hoặc gián tiếp với nhau ngay trong tài liệu. Phân loại là 'context_mismatch'.\n\n"
+                    f"Định dạng kết quả trả về BẮT BUỘC là một mảng JSON chứa danh sách các điểm phát hiện, mỗi điểm là một đối tượng JSON gồm:\n"
+                    f"- 'text': Chuỗi ký tự (câu hoặc cụm từ) chính xác xuất hiện trong tài liệu gốc bị lỗi.\n"
+                    f"- 'category': Nhãn phân loại ('factual_error', 'unsupported_claim', hoặc 'context_mismatch').\n"
+                    f"- 'explanation': Giải thích chi tiết bằng tiếng Việt lý do tại sao câu này bị lỗi, cung cấp lập luận phản bác hoặc thông tin đúng cần có.\n"
+                    f"- 'confidence': Độ tin cậy của phát hiện này (số thực từ 0.0 đến 1.0).\n\n"
+                    f"Ví dụ định dạng trả về:\n"
+                    f"[\n"
+                    f"  {{\n"
+                    f"    \"text\": \"Trái Đất là hành tinh lớn nhất hệ mặt trời\",\n"
+                    f"    \"category\": \"factual_error\",\n"
+                    f"    \"explanation\": \"Trái Đất không phải hành tinh lớn nhất. Sao Mộc mới là hành tinh lớn nhất hệ mặt trời.\",\n"
+                    f"    \"confidence\": 0.95\n"
+                    f"  }}\n"
+                    f"]\n\n"
+                    f"Chỉ trả về duy nhất chuỗi JSON thô dạng mảng, không bọc trong markdown block, không thêm bất kỳ văn bản giải thích nào khác."
+                )
 
-            # Attempt to parse the JSON array
-            try:
-                parsed_findings = json.loads(cleaned_response)
-                if not isinstance(parsed_findings, list):
-                    parsed_findings = []
-            except Exception:
-                # Fallback extraction using regex
-                match = re.search(r'\[[\s\S]*\]', cleaned_response)
-                if match:
-                    try:
-                        parsed_findings = json.loads(match.group())
-                    except Exception:
-                        parsed_findings = []
-                else:
-                    parsed_findings = []
+                # 3. Call LLM Service
+                response_tokens = []
+                stream = self.llm_service.generate_answer(
+                    context=analyze_text,
+                    query=query_prompt,
+                    system_prompt=system_prompt,
+                    provider=provider
+                )
+                for token in stream:
+                    response_tokens.append(token)
+
+                raw_response = "".join(response_tokens).strip()
+
+                # Clean markdown code blocks if any
+                cleaned_response = raw_response
+                if cleaned_response.startswith("```"):
+                    cleaned_response = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned_response)
+                if cleaned_response.endswith("```"):
+                    cleaned_response = re.sub(r"\n?```$", "", cleaned_response)
+                cleaned_response = cleaned_response.strip()
+
+                # Attempt to parse the JSON array
+                parsed_findings = []
+                try:
+                    parsed_findings = json.loads(cleaned_response)
+                except Exception:
+                    # Fallback extraction using regex
+                    match = re.search(r'\[[\s\S]*\]', cleaned_response)
+                    if match:
+                        try:
+                            parsed_findings = json.loads(match.group())
+                        except Exception:
+                            pass
+
+                if isinstance(parsed_findings, list):
+                    for finding in parsed_findings:
+                        if not isinstance(finding, dict) or "text" not in finding:
+                            continue
+                        
+                        finding_text = finding["text"].strip()
+                        if not finding_text:
+                            continue
+                        
+                        # Basic validation & defaults
+                        category = finding.get("category", "factual_error")
+                        if category not in ["factual_error", "unsupported_claim", "context_mismatch"]:
+                            category = "factual_error"
+                        finding["category"] = category
+                        
+                        finding["explanation"] = finding.get("explanation", "Phát hiện điểm đáng ngờ trong câu này.")
+                        try:
+                            finding["confidence"] = round(float(finding.get("confidence", 0.7)), 2)
+                        except Exception:
+                            finding["confidence"] = 0.7
+                        
+                        # Deduplication check
+                        text_lower = finding_text.lower()
+                        if text_lower not in seen_texts:
+                            seen_texts.add(text_lower)
+                            all_findings.append(finding)
 
             return {
                 "success": True,
                 "filename": filename,
-                "findings": parsed_findings
+                "findings": all_findings
             }
 
         except Exception as e:
