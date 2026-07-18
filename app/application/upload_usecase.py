@@ -225,6 +225,7 @@ class UploadUseCase:
             # 1. Open with pdfplumber for text/tables
             # 2. Open with PyPDF2 (or pypdf) for images
             pdf_reader = None
+            processed_images = {}  # Cache to avoid duplicate image processing & OCR
             if PdfReader:
                 try:
                     pdf_reader = PdfReader(io.BytesIO(file_content))
@@ -262,21 +263,51 @@ class UploadUseCase:
                             reader_page = pdf_reader.pages[page_idx]
                             for img_idx, image_file_object in enumerate(reader_page.images):
                                 try:
+                                    img_data = image_file_object.data
+                                    if not img_data:
+                                        continue
+                                        
+                                    # 1. Filter out tiny decorative images (icons, lines, spacers) below 40x40 pixels
+                                    if Image:
+                                        try:
+                                            with Image.open(io.BytesIO(img_data)) as img_obj:
+                                                width, height = img_obj.size
+                                                if width < 40 or height < 40:
+                                                    logger.debug(f"Skipping tiny decorative image on page {page_idx}: {width}x{height}")
+                                                    continue
+                                        except Exception as pil_err:
+                                            logger.debug(f"Failed to check image size via PIL: {pil_err}")
+
+                                    # 2. Skip duplicate images (like header/footer logos) using MD5 hash
+                                    import hashlib
+                                    img_hash = hashlib.md5(img_data).hexdigest()
+                                    
+                                    if img_hash in processed_images:
+                                        logger.info(f"Reusing cached image and OCR for duplicate hash {img_hash} on page {page_idx}")
+                                        cached_url, cached_ocr = processed_images[img_hash]
+                                        image_urls.append(cached_url)
+                                        if cached_ocr:
+                                            ocr_texts.append(cached_ocr)
+                                        continue
+
                                     # Clean image name
                                     clean_filename = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
                                     img_name = f"{clean_filename}_p{page_idx}_img{img_idx}_{re.sub(r'[^A-Za-z0-9._-]', '_', image_file_object.name)}"
                                     img_path = os.path.join("app/static/outputs", img_name)
                                     
                                     with open(img_path, "wb") as img_f:
-                                        img_f.write(image_file_object.data)
+                                        img_f.write(img_data)
                                         
                                     image_url = f"/static/outputs/{img_name}"
                                     image_urls.append(image_url)
                                     
                                     # Perform OCR
-                                    ocr_text = self._ocr_image(image_file_object.data)
+                                    ocr_text = self._ocr_image(img_data)
                                     if ocr_text:
                                         ocr_texts.append(ocr_text)
+                                        
+                                    # Cache for deduplication
+                                    processed_images[img_hash] = (image_url, ocr_text)
                                 except Exception as img_err:
                                     logger.warning(f"Failed to process image {img_idx} on page {page_idx}: {img_err}")
                         except Exception as page_err:
