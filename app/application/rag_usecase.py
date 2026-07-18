@@ -73,6 +73,11 @@ class RAGUseCase:
                 })
             yield {"type": "citation", "content": citations}
 
+            # Emit context images from local results for inline display
+            context_images = self._collect_context_images(results)
+            if context_images:
+                yield {"type": "context_images", "content": context_images}
+
             context = f"Web Search Context:\n{web_context}"
             if local_context:
                 context += f"\n\nLocal Document Context:\n{local_context}"
@@ -101,10 +106,32 @@ class RAGUseCase:
                     "images": meta.get("images", "")
                 })
             yield {"type": "citation", "content": citations}
+
+            # Emit context images for inline display in the bot answer
+            context_images = self._collect_context_images(results)
+            if context_images:
+                yield {"type": "context_images", "content": context_images}
+
             context = "\n\n".join([item["text"] for item in results])
             if len(context) > 12000:
                 context = context[:12000] + "\n... [TRUNCATED DUE TO TPM LIMITS] ..."
             query_prompt = query
+
+        # Collect image URLs from context for prompt augmentation
+        all_context_images = self._collect_context_images(results)
+        image_prompt_section = ""
+        if all_context_images:
+            image_list = "\n".join([f"  - {url}" for url in all_context_images])
+            image_prompt_section = (
+                "\nIMAGE RULES (CRITICAL):\n"
+                "The following images were extracted from the user's uploaded documents. "
+                "You may embed them inline using Markdown image syntax: ![mô tả ảnh](url).\n"
+                "⚠️ You MUST ONLY use URLs from the list below. NEVER invent, guess, or fabricate image URLs. "
+                "NEVER use URLs from external sites like imgur, wikipedia, or any other domain. "
+                "If none of the images below are relevant, do NOT include any images at all.\n"
+                "Only include images that directly illustrate your answer.\n"
+                f"Available document images (use ONLY these exact URLs):\n{image_list}\n"
+            )
 
         # Math rules and agentic instructions prompt
         system_prompt = (
@@ -121,6 +148,7 @@ class RAGUseCase:
             "Use matplotlib and plt.show() to draw charts; they will be rendered for the user.\n"
             "If the user asks to download, fetch, or retrieve external secure files/documents from a URL, you MUST "
             "use the web_automation_download tool."
+            + image_prompt_section
         )
 
         stream = self.llm_service.generate_answer(context=context, query=query_prompt, system_prompt=system_prompt, provider=provider)
@@ -182,6 +210,31 @@ class RAGUseCase:
                     tool_call_text = f"<tool_call:{name}>{args}</tool_call>"
 
             yield from self._handle_tool_call(tool_call_text, query, provider)
+
+    def _collect_context_images(self, results: list) -> list:
+        """Extract unique image URLs from retrieved document chunks."""
+        seen = set()
+        image_urls = []
+        for item in results:
+            meta = item.get("metadata", {}) or {}
+            images_raw = meta.get("images", "")
+            if not images_raw:
+                continue
+            try:
+                urls = json.loads(images_raw)
+                if isinstance(urls, list):
+                    for url in urls:
+                        if url and url not in seen:
+                            seen.add(url)
+                            image_urls.append(url)
+            except (json.JSONDecodeError, TypeError):
+                # Fallback: comma-separated string
+                for url in images_raw.split(","):
+                    url = url.strip()
+                    if url and url not in seen:
+                        seen.add(url)
+                        image_urls.append(url)
+        return image_urls
 
     def _handle_tool_call(self, tool_call_text: str, query: str, provider: str = "auto") -> Generator[dict, None, None]:
         # Parse XML tags
