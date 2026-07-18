@@ -739,7 +739,12 @@ def generate_sandbox_app(
     Endpoint to generate an interactive, runnable SPA HTML page from documents in sandbox.
     """
     _assert_notebook_access(request.notebook_id, user_id)
-    result = use_case.execute(notebook_id=request.notebook_id, app_prompt=request.app_prompt, provider=request.provider)
+    result = use_case.execute(
+        notebook_id=request.notebook_id, 
+        app_prompt=request.app_prompt, 
+        provider=request.provider,
+        template_id=request.template_id
+    )
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("message"))
     return result
@@ -773,6 +778,104 @@ def delete_sandbox_app(
     if not success:
         raise HTTPException(status_code=404, detail="Không tìm thấy ứng dụng để xóa.")
     return {"success": True, "message": "Đã xóa ứng dụng thành công."}
+
+
+@router.get("/sandbox/templates")
+def list_sandbox_templates(
+    notebook_id: str = "default",
+    use_case: AppGeneratorUseCase = Depends(get_app_generator_use_case),
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint to list suggested app templates for a specific notebook.
+    """
+    _assert_notebook_access(notebook_id, user_id)
+    return use_case.get_suggested_templates(notebook_id=notebook_id)
+
+
+@router.get("/sandbox/api/data")
+def get_sandbox_csv_data(
+    filename: str,
+    notebook_id: str = "default",
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint for sandbox apps to fetch raw dataset CSV/XLSX data as a JSON list of objects.
+    """
+    _assert_notebook_access(notebook_id, user_id)
+    import pandas as pd
+    
+    # Secure safe name checking
+    safe_nb = re.sub(r"[^A-Za-z0-9._-]", "_", notebook_id)
+    safe_file = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
+    file_path = os.path.join("app", "static", "datasets", safe_nb, safe_file)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp dữ liệu.")
+        
+    try:
+        lower = file_path.lower()
+        if lower.endswith(".csv"):
+            try:
+                df = pd.read_csv(file_path)
+            except UnicodeDecodeError:
+                df = pd.read_csv(file_path, encoding="latin-1")
+        elif lower.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(file_path)
+        else:
+            raise HTTPException(status_code=400, detail="Định dạng tệp không được hỗ trợ.")
+            
+        # Convert NaN/NaT to None to make it JSON serializable
+        df = df.where(pd.notnull(df), None)
+        return df.to_dict(orient="records")
+    except Exception as e:
+        logger.error(f"Error loading dataset for sandbox: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Lỗi đọc dữ liệu: {str(e)}")
+
+
+@router.get("/sandbox/api/documents")
+def get_sandbox_documents_content(
+    notebook_id: str = "default",
+    user_id: str | None = Depends(get_current_user_id)
+):
+    """
+    Endpoint for sandbox apps to fetch the outline and summaries of documents in JSON.
+    """
+    _assert_notebook_access(notebook_id, user_id)
+    try:
+        results = vector_store.collection.get(
+            where={"notebook_id": notebook_id},
+            limit=50
+        )
+        
+        docs_list = []
+        seen = set()
+        if results and results.get("documents"):
+            metadatas = results.get("metadatas", []) or []
+            for doc, meta in zip(results["documents"], metadatas):
+                if not doc:
+                    continue
+                if meta and meta.get("source") == "screen_capture":
+                    continue
+                
+                source = meta.get("source", "Unknown") if meta else "Unknown"
+                if source not in seen:
+                    seen.add(source)
+                    docs_list.append({
+                        "filename": source,
+                        "content": doc
+                    })
+                else:
+                    for d in docs_list:
+                        if d["filename"] == source:
+                            d["content"] += "\n\n" + doc
+                            break
+                            
+        return docs_list
+    except Exception as e:
+        logger.error(f"Error loading documents for sandbox: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Lỗi đọc tài liệu: {str(e)}")
+
 
 
 @router.get("/documents/content")

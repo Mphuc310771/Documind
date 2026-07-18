@@ -277,6 +277,42 @@ class TestDistributedRAGHub(unittest.TestCase):
         self.assertEqual(findings[1]["category"], "context_mismatch")
         self.assertEqual(findings[1]["confidence"], 0.95)
 
+    def test_sandbox_app_templates(self):
+        """
+        Tests get_suggested_templates under AppGeneratorUseCase.
+        """
+        mock_store = MagicMock()
+        mock_llm = MagicMock()
+        
+        # Test case 1: no datasets
+        mock_store.collection.get.return_value = {
+            "documents": ["Normal doc text"],
+            "metadatas": [{"source": "test.txt"}]
+        }
+        
+        from app.application.app_generator_usecase import AppGeneratorUseCase
+        use_case = AppGeneratorUseCase(vector_store=mock_store, llm_service=mock_llm)
+        templates = use_case.get_suggested_templates("default")
+        
+        # Should only contain 'doc' type templates except 'data_analyzer' which is always featured
+        for t in templates:
+            if t["id"] == "data_analyzer":
+                self.assertEqual(t["type"], "data")
+            else:
+                self.assertEqual(t["type"], "doc")
+            
+        # Test case 2: with datasets
+        mock_store.collection.get.return_value = {
+            "documents": ["[DATASET] test.csv\nFile path for pandas analysis: path/to/file.csv"],
+            "metadatas": [{"source": "test.csv", "is_dataset": True}]
+        }
+        templates_with_data = use_case.get_suggested_templates("default")
+        
+        # Should contain both 'doc' and 'data' type templates
+        has_data_template = any(t["type"] == "data" for t in templates_with_data)
+        self.assertTrue(has_data_template)
+
 
 if __name__ == "__main__":
     unittest.main()
+

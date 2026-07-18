@@ -86,6 +86,8 @@ class AppGenerateRequest(BaseModel):
     notebook_id: str = "default"
     app_prompt: str
     provider: str = "auto"
+    template_id: str | None = None
+
 
 
 class RedTeamRequest(BaseModel):

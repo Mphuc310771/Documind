@@ -5626,7 +5626,7 @@
     }
 
     // ===== Sandbox App Generation and Rendering =====
-    function openAppGeneratorPrompt() {
+    async function openAppGeneratorPrompt() {
         if (uploadedFiles.length === 0) {
             showNotification("Vui lòng tải tài liệu lên trước khi tạo ứng dụng hộp cát!", "error");
             return;
@@ -5640,18 +5640,90 @@
         if (!overlay || !content) return;
         
         overlay.classList.add('active');
+        setStudioModalMode('graphrag'); // Make modal wide for gallery layout
+        
+        // Show template gallery loading state
         content.innerHTML = `
-            <div style="padding: 24px; display:flex; flex-direction:column; gap:16px; font-family:'Plus Jakarta Sans', sans-serif;">
+            <div style="padding: 40px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-family:'Plus Jakarta Sans', sans-serif; min-height:300px;">
+                <div class="spinner" style="width:40px; height:40px; border:3px solid rgba(255,255,255,0.1); border-top:3px solid var(--accent); border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary);">Đang tải các mẫu ứng dụng gợi ý cho tài liệu của bạn...</h3>
+            </div>
+        `;
+
+        let templates = [];
+        try {
+            const res = await fetch(`/sandbox/templates?notebook_id=${currentNotebookId}`);
+            if (res.ok) {
+                templates = await res.json();
+            }
+        } catch (err) {
+            console.error("Error loading sandbox templates:", err);
+        }
+
+        window.__current_selected_template_id = null;
+
+        window.selectAppTemplate = function(id, promptText) {
+            window.__current_selected_template_id = id;
+            const input = document.getElementById('appPromptInput');
+            if (input) {
+                input.value = promptText;
+            }
+            
+            // Highlight active template card
+            const cards = document.querySelectorAll('.template-card');
+            cards.forEach(card => {
+                if (card.getAttribute('data-id') === id) {
+                    card.style.borderColor = 'var(--accent)';
+                    card.style.background = 'rgba(255, 255, 255, 0.08)';
+                } else {
+                    card.style.borderColor = 'var(--border-glass)';
+                    card.style.background = 'rgba(255, 255, 255, 0.02)';
+                }
+            });
+        };
+
+        const templateGridHtml = templates.map(t => {
+            const escapedPrompt = t.prompt.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+            return `
+                <div class="template-card" data-id="${t.id}" onclick="selectAppTemplate('${t.id}', \`${escapedPrompt}\`)" style="cursor:pointer; border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; background: rgba(255,255,255,0.02); transition: all 0.2s; box-sizing: border-box;">
+                    <div style="font-weight:bold; font-size:0.8rem; color:var(--text-primary); margin-bottom:4px;">${t.name}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${t.description}</div>
+                </div>
+            `;
+        }).join('');
+
+        const filesHtml = uploadedFiles.map(f => {
+            const isData = f.type === 'dataset' || (f.name && (f.name.endsWith('.csv') || f.name.endsWith('.xlsx')));
+            return `
+                <span style="font-size:0.75rem; background:rgba(255,255,255,0.05); padding:3px 8px; border-radius:12px; border:1px solid var(--border-glass); color:var(--text-secondary); display:inline-flex; align-items:center; gap:4px;">
+                    ${isData ? '📊' : '📄'} ${escapeHtml(f.name || 'Tài liệu')}
+                </span>
+            `;
+        }).join(' ');
+
+        content.innerHTML = `
+            <div style="padding: 24px; display:flex; flex-direction:column; gap:16px; font-family:'Plus Jakarta Sans', sans-serif; box-sizing: border-box;">
                 <h2 style="margin:0; font-size:1.3rem; color:var(--text-primary); display:flex; align-items:center; gap:8px;">🛠️ Lập trình Ứng dụng Hộp cát (SPA)</h2>
-                <p style="color:var(--text-muted); font-size:0.85rem; margin:0; line-height:1.5;">Hệ thống sẽ tự động đọc tài liệu hiện tại và lập trình ra một ứng dụng web (HTML/CSS/JS) chạy trực tiếp trong hộp cát an toàn.</p>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin:0; line-height:1.5;">Hệ thống sẽ tự động phân tích dữ liệu dưới đây để lập trình ra một ứng dụng web (HTML/CSS/JS) chạy độc lập.</p>
                 
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    ${filesHtml}
+                </div>
+
                 <div style="display:flex; flex-direction:column; gap:6px;">
-                    <label style="font-size:0.8rem; font-weight:700; color:var(--text-secondary)">Bạn muốn lập trình ứng dụng gì?</label>
-                    <textarea id="appPromptInput" placeholder="Ví dụ: Một trò chơi Cờ tỷ phú Monopoly đẹp mắt, hỗ trợ 2-4 người chơi, có đổ xúc xắc, mua đất và tính tiền tự động..." style="width:100%; min-height:110px; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary); padding:12px; border-radius:8px; font-size:0.85rem; outline:none; resize:vertical; box-sizing:border-box; font-family:inherit;"></textarea>
+                    <label style="font-size:0.8rem; font-weight:700; color:var(--text-secondary)">Chọn một Mẫu Ứng dụng gợi ý để bắt đầu nhanh:</label>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; max-height: 180px; overflow-y: auto; padding: 4px; border:1px solid var(--border-glass); border-radius:8px; background:rgba(0,0,0,0.2);">
+                        ${templateGridHtml || `<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--text-muted); font-size:0.8rem;">Không tìm thấy mẫu ứng dụng phù hợp.</div>`}
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:var(--text-secondary)">Mô tả chi tiết ứng dụng muốn lập trình:</label>
+                    <textarea id="appPromptInput" placeholder="Chọn một mẫu ở trên để điền nhanh hoặc tự mô tả ý tưởng ứng dụng của bạn tại đây..." style="width:100%; min-height:90px; background:var(--control-bg); border:1px solid var(--border-glass); color:var(--text-primary); padding:12px; border-radius:8px; font-size:0.85rem; outline:none; resize:vertical; box-sizing:border-box; font-family:inherit;"></textarea>
                 </div>
                 
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top:8px;">
-                    <button class="btn-action" onclick="closeStudioModal()" style="background: transparent; border: 1px solid var(--border-glass); color: var(--text-secondary); margin: 0; padding: 8px 16px;">Hủy bỏ</button>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top:4px;">
+                    <button class="btn-action" onclick="closeStudioModal(); setStudioModalMode('');" style="background: transparent; border: 1px solid var(--border-glass); color: var(--text-secondary); margin: 0; padding: 8px 16px;">Hủy bỏ</button>
                     <button class="btn-action" onclick="generateSandboxApp('${provider}')" style="margin:0; padding:8px 20px; background:var(--accent-gradient); color:#030712; font-weight:800;">Lập trình & Chạy 🚀</button>
                 </div>
             </div>
@@ -5685,7 +5757,12 @@
             const res = await fetch('/sandbox/generate-app', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notebook_id: currentNotebookId, app_prompt: appPrompt, provider: provider })
+                body: JSON.stringify({ 
+                    notebook_id: currentNotebookId, 
+                    app_prompt: appPrompt, 
+                    provider: provider,
+                    template_id: window.__current_selected_template_id || null
+                })
             });
 
             if (!res.ok) {
