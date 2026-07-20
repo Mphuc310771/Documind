@@ -231,106 +231,151 @@ class UploadUseCase:
                     pdf_reader = PdfReader(io.BytesIO(file_content))
                 except Exception as e:
                     logger.warning(f"PyPDF2 reader failed to load: {e}")
-                
-            with pdfplumber.open(io.BytesIO(file_content)) as pdf:
-                logger.debug(f"Total pages parsed: {len(pdf.pages)}")
-                for page_idx, page in enumerate(pdf.pages):
-                    page_text = page.extract_text() or ""
-                    
-                    # Extract tables from this page
-                    tables = page.extract_tables() or []
-                    for table in tables:
-                        if not table:
-                            continue
-                        for row in table:
-                            if row is None:
-                                continue
-                            clean_row = []
-                            for cell in row:
-                                if cell is None:
-                                    clean_row.append(" ")
-                                else:
-                                    clean_str = str(cell).replace('\n', ' ').replace('\r', '').strip()
-                                    clean_row.append(clean_str if clean_str else " ")
-                            markdown_row = "| " + " | ".join(clean_row) + " |\n"
-                            page_text += "\n" + markdown_row
-                    
-                    # Extract images from this page
-                    image_urls = []
-                    ocr_texts = []
-                    if pdf_reader and page_idx < len(pdf_reader.pages):
+
+            pdfplumber_ok = False
+            try:
+                with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                    pdfplumber_ok = True
+                    logger.debug(f"Total pages parsed: {len(pdf.pages)}")
+                    for page_idx, page in enumerate(pdf.pages):
                         try:
-                            reader_page = pdf_reader.pages[page_idx]
-                            for img_idx, image_file_object in enumerate(reader_page.images):
-                                try:
-                                    img_data = image_file_object.data
-                                    if not img_data:
-                                        continue
-                                        
-                                    # 1. Filter out tiny decorative images (icons, lines, spacers) below 40x40 pixels
-                                    if Image:
-                                        try:
-                                            with Image.open(io.BytesIO(img_data)) as img_obj:
-                                                width, height = img_obj.size
-                                                if width < 40 or height < 40:
-                                                    logger.debug(f"Skipping tiny decorative image on page {page_idx}: {width}x{height}")
-                                                    continue
-                                        except Exception as pil_err:
-                                            logger.debug(f"Failed to check image size via PIL: {pil_err}")
+                            page_text = page.extract_text() or ""
+                        except Exception as page_text_err:
+                            logger.warning(f"pdfplumber failed to extract text from page {page_idx}: {page_text_err}")
+                            page_text = ""
 
-                                    # 2. Skip duplicate images (like header/footer logos) using MD5 hash
-                                    import hashlib
-                                    img_hash = hashlib.md5(img_data).hexdigest()
-                                    
-                                    if img_hash in processed_images:
-                                        logger.info(f"Reusing cached image and OCR for duplicate hash {img_hash} on page {page_idx}")
-                                        cached_url, cached_ocr = processed_images[img_hash]
-                                        image_urls.append(cached_url)
-                                        if cached_ocr:
-                                            ocr_texts.append(cached_ocr)
-                                        continue
+                        # Extract tables from this page
+                        try:
+                            tables = page.extract_tables() or []
+                        except Exception as table_err:
+                            logger.warning(f"pdfplumber failed to extract tables from page {page_idx}: {table_err}")
+                            tables = []
+                        for table in tables:
+                            if not table:
+                                continue
+                            for row in table:
+                                if row is None:
+                                    continue
+                                clean_row = []
+                                for cell in row:
+                                    if cell is None:
+                                        clean_row.append(" ")
+                                    else:
+                                        clean_str = str(cell).replace('\n', ' ').replace('\r', '').strip()
+                                        clean_row.append(clean_str if clean_str else " ")
+                                markdown_row = "| " + " | ".join(clean_row) + " |\n"
+                                page_text += "\n" + markdown_row
 
-                                    # Clean image name
-                                    clean_filename = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
-                                    img_name = f"{clean_filename}_p{page_idx}_img{img_idx}_{re.sub(r'[^A-Za-z0-9._-]', '_', image_file_object.name)}"
-                                    img_path = os.path.join("app/static/outputs", img_name)
-                                    
-                                    with open(img_path, "wb") as img_f:
-                                        img_f.write(img_data)
-                                        
-                                    image_url = f"/static/outputs/{img_name}"
-                                    image_urls.append(image_url)
-                                    
-                                    # Perform OCR
-                                    ocr_text = self._ocr_image(img_data)
-                                    if ocr_text:
-                                        ocr_texts.append(ocr_text)
-                                        
-                                    # Cache for deduplication
-                                    processed_images[img_hash] = (image_url, ocr_text)
-                                except Exception as img_err:
-                                    logger.warning(f"Failed to process image {img_idx} on page {page_idx}: {img_err}")
+                        # Extract images from this page
+                        image_urls = []
+                        ocr_texts = []
+                        if pdf_reader and page_idx < len(pdf_reader.pages):
+                            try:
+                                reader_page = pdf_reader.pages[page_idx]
+                                for img_idx, image_file_object in enumerate(reader_page.images):
+                                    try:
+                                        img_data = image_file_object.data
+                                        if not img_data:
+                                            continue
+
+                                        # 1. Filter out tiny decorative images (icons, lines, spacers) below 40x40 pixels
+                                        if Image:
+                                            try:
+                                                with Image.open(io.BytesIO(img_data)) as img_obj:
+                                                    width, height = img_obj.size
+                                                    if width < 40 or height < 40:
+                                                        logger.debug(f"Skipping tiny decorative image on page {page_idx}: {width}x{height}")
+                                                        continue
+                                            except Exception as pil_err:
+                                                logger.debug(f"Failed to check image size via PIL: {pil_err}")
+
+                                        # 2. Skip duplicate images (like header/footer logos) using MD5 hash
+                                        import hashlib
+                                        img_hash = hashlib.md5(img_data).hexdigest()
+
+                                        if img_hash in processed_images:
+                                            logger.info(f"Reusing cached image and OCR for duplicate hash {img_hash} on page {page_idx}")
+                                            cached_url, cached_ocr = processed_images[img_hash]
+                                            image_urls.append(cached_url)
+                                            if cached_ocr:
+                                                ocr_texts.append(cached_ocr)
+                                            continue
+
+                                        # Clean image name
+                                        clean_filename = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
+                                        img_name = f"{clean_filename}_p{page_idx}_img{img_idx}_{re.sub(r'[^A-Za-z0-9._-]', '_', image_file_object.name)}"
+                                        img_path = os.path.join("app/static/outputs", img_name)
+
+                                        with open(img_path, "wb") as img_f:
+                                            img_f.write(img_data)
+
+                                        image_url = f"/static/outputs/{img_name}"
+                                        image_urls.append(image_url)
+
+                                        # Perform OCR
+                                        ocr_text = self._ocr_image(img_data)
+                                        if ocr_text:
+                                            ocr_texts.append(ocr_text)
+
+                                        # Cache for deduplication
+                                        processed_images[img_hash] = (image_url, ocr_text)
+                                    except Exception as img_err:
+                                        logger.warning(f"Failed to process image {img_idx} on page {page_idx}: {img_err}")
+                            except Exception as page_err:
+                                logger.warning(f"Failed to extract images from page {page_idx}: {page_err}")
+
+                        # Append OCR text to page content to make it searchable
+                        if ocr_texts:
+                            page_text += "\n\n[Nội dung hình ảnh trích xuất qua OCR:\n" + "\n".join(ocr_texts) + "\n]"
+
+                        # Split page text into chunks
+                        if page_text.strip():
+                            chunks = text_splitter.split_text(page_text)
+                            for i, chunk in enumerate(chunks):
+                                meta = {
+                                    "source": filename,
+                                    "chunk_index": len(all_chunks),
+                                    "notebook_id": notebook_id,
+                                    "page": page_idx + 1
+                                }
+                                if image_urls:
+                                    meta["images"] = json.dumps(image_urls)
+                                all_chunks.append(chunk)
+                                all_metadatas.append(meta)
+            except Exception as pdfplumber_err:
+                logger.warning(f"pdfplumber failed to open PDF '{filename}': {pdfplumber_err}")
+
+            # Fallback: if pdfplumber failed or extracted 0 chunks, try PyPDF2/pypdf
+            if not all_chunks and pdf_reader:
+                logger.info(f"Attempting PyPDF2/pypdf fallback text extraction for '{filename}'")
+                try:
+                    for page_idx, reader_page in enumerate(pdf_reader.pages):
+                        try:
+                            page_text = reader_page.extract_text() or ""
+                            if page_text.strip():
+                                chunks = text_splitter.split_text(page_text)
+                                for i, chunk in enumerate(chunks):
+                                    meta = {
+                                        "source": filename,
+                                        "chunk_index": len(all_chunks),
+                                        "notebook_id": notebook_id,
+                                        "page": page_idx + 1
+                                    }
+                                    all_chunks.append(chunk)
+                                    all_metadatas.append(meta)
                         except Exception as page_err:
-                            logger.warning(f"Failed to extract images from page {page_idx}: {page_err}")
-                            
-                    # Append OCR text to page content to make it searchable
-                    if ocr_texts:
-                        page_text += "\n\n[Nội dung hình ảnh trích xuất qua OCR:\n" + "\n".join(ocr_texts) + "\n]"
-                        
-                    # Split page text into chunks
-                    if page_text.strip():
-                        chunks = text_splitter.split_text(page_text)
-                        for i, chunk in enumerate(chunks):
-                            meta = {
-                                "source": filename,
-                                "chunk_index": len(all_chunks),
-                                "notebook_id": notebook_id,
-                                "page": page_idx + 1
-                            }
-                            if image_urls:
-                                meta["images"] = json.dumps(image_urls)
-                            all_chunks.append(chunk)
-                            all_metadatas.append(meta)
+                            logger.warning(f"PyPDF2 fallback failed on page {page_idx}: {page_err}")
+                except Exception as fallback_err:
+                    logger.error(f"PyPDF2/pypdf fallback also failed for '{filename}': {fallback_err}")
+
+            # If still no chunks after all attempts, raise a clear error
+            if not all_chunks and ext.endswith(".pdf"):
+                logger.error(f"All PDF extraction methods failed for '{filename}'. File may be encrypted, corrupted, or image-only without OCR support.")
+                raise ValueError(
+                    f"Không thể trích xuất nội dung từ file '{filename}'. "
+                    f"File PDF có thể bị mã hóa, bị hỏng, hoặc chỉ chứa hình ảnh mà không thể OCR được. "
+                    f"Vui lòng thử lại với file khác."
+                )
 
         elif ext.endswith(".docx"):
             # docx processing
@@ -459,7 +504,13 @@ class UploadUseCase:
                     all_metadatas.append(meta)
 
         if all_chunks:
-            self.vector_store.add_documents(texts=all_chunks, metadatas=all_metadatas)
+            try:
+                self.vector_store.add_documents(texts=all_chunks, metadatas=all_metadatas)
+            except Exception as store_err:
+                logger.error(f"Failed to store chunks in vector DB for '{filename}': {store_err}")
+                raise ValueError(
+                    f"Đã trích xuất nội dung từ '{filename}' nhưng không thể lưu vào cơ sở dữ liệu: {store_err}"
+                )
 
         logger.info(f"Processed '{filename}': {len(all_chunks)} chunks stored for notebook '{notebook_id}'.")
         return {

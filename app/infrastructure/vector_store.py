@@ -40,8 +40,15 @@ class ChromaDBStore:
         if not texts:
             return
 
-        # Generate unique ids based on MD5 hashes of the text content
-        ids = [hashlib.md5(text.encode('utf-8')).hexdigest() for text in texts]
+        # Generate unique and stable ids based on notebook_id, source, chunk_index, and text content
+        ids = []
+        for i, text in enumerate(texts):
+            meta = metadatas[i] if (metadatas and i < len(metadatas)) else {}
+            source = meta.get("source", "unknown")
+            notebook_id = meta.get("notebook_id", "default")
+            chunk_idx = meta.get("chunk_index", i)
+            key = f"{notebook_id}_{source}_{chunk_idx}_{text}"
+            ids.append(hashlib.md5(key.encode('utf-8')).hexdigest())
         
         self.collection.upsert(
             documents=texts,

@@ -4591,27 +4591,64 @@
 
         showNotification(`Đang bắt đầu tải lên ${newFiles.length} tệp...`, 'info');
 
+        const MAX_RETRIES = 2;
+        const failedFiles = [];
+
         for (const file of newFiles) {
             // Thêm tệp vào danh sách với trạng thái Đang tải...
             addFileItem(file.name, 'Đang tải...', 'loading');
+            console.log(`[Upload] Starting: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
 
-            const formData = new FormData();
-            formData.append('file', file);
+            let success = false;
+            let lastError = '';
 
-            try {
-                const res = await fetch(`/upload?notebook_id=${currentNotebookId}`, { method: 'POST', body: formData });
-                const data = await res.json();
-                if (res.ok) {
-                    addFileItem(file.name, `✓ ${data.total_chunks} chunks`, 'success');
-                    showNotification(`Đã tải lên thành công tệp ${file.name}!`, 'success');
-                } else {
-                    addFileItem(file.name, '✗ Lỗi', 'error');
-                    showNotification(`Lỗi xử lý tệp ${file.name}: ${data.detail || 'Lỗi server'}`, 'error');
+            for (let attempt = 0; attempt <= MAX_RETRIES && !success; attempt++) {
+                if (attempt > 0) {
+                    addFileItem(file.name, `Đang thử lại (${attempt}/${MAX_RETRIES})...`, 'loading');
+                    console.log(`[Upload] Retry ${attempt}/${MAX_RETRIES} for ${file.name}`);
+                    await new Promise(r => setTimeout(r, 1000 * attempt));
                 }
-            } catch (err) {
-                addFileItem(file.name, '✗ Lỗi mạng', 'error');
-                showNotification(`Lỗi kết nối khi tải lên tệp ${file.name}`, 'error');
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const res = await fetch(`/upload?notebook_id=${currentNotebookId}`, { method: 'POST', body: formData });
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (jsonErr) {
+                        const text = await res.text();
+                        data = { detail: text || `Server trả về mã lỗi ${res.status}` };
+                    }
+                    if (res.ok) {
+                        addFileItem(file.name, `✓ ${data.total_chunks} chunks`, 'success');
+                        showNotification(`Đã tải lên thành công tệp ${file.name}!`, 'success');
+                        console.log(`[Upload] Success: ${file.name} → ${data.total_chunks} chunks`);
+                        success = true;
+                    } else {
+                        lastError = data.detail || `Lỗi server (${res.status})`;
+                        console.warn(`[Upload] Server error for ${file.name}: ${lastError}`);
+                        // Don't retry 400 errors (bad request = file format issue, not transient)
+                        if (res.status === 400) break;
+                    }
+                } catch (err) {
+                    lastError = err.message || 'Lỗi kết nối mạng';
+                    console.warn(`[Upload] Network error for ${file.name} (attempt ${attempt}): ${lastError}`);
+                }
             }
+
+            if (!success) {
+                addFileItem(file.name, `✗ ${lastError}`, 'error');
+                showNotification(`Lỗi tải tệp ${file.name}: ${lastError}`, 'error');
+                failedFiles.push({ file, error: lastError });
+            }
+        }
+
+        if (failedFiles.length > 0 && failedFiles.length < newFiles.length) {
+            showNotification(`Đã tải ${newFiles.length - failedFiles.length}/${newFiles.length} tệp. ${failedFiles.length} tệp bị lỗi.`, 'warning');
+        } else if (failedFiles.length === newFiles.length) {
+            showNotification(`Không tải được tệp nào. Vui lòng kiểm tra lại file hoặc kết nối mạng.`, 'error');
         }
 
         fileInput.value = '';
