@@ -5956,6 +5956,33 @@
         return `redteam_cache_${currentNotebookId}_${filename}`;
     }
 
+    function clearRedTeamCache(filename) {
+        if (filename) {
+            delete redTeamCache[filename];
+            try {
+                localStorage.removeItem(getRedTeamCacheKey(filename));
+            } catch (e) {}
+        } else {
+            redTeamCache = {};
+            try {
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('redteam_cache_')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+            } catch (e) {}
+        }
+    }
+
+    window.clearFakeCheckCache = function(filename) {
+        clearRedTeamCache(filename);
+        showNotification("Đã xóa sạch Cache Fake Check!", "success");
+        const checkbox = document.getElementById('redTeamToggle');
+        if (checkbox && checkbox.checked) {
+            toggleRedTeaming(filename, true);
+        }
+    };
+
     function getRedTeamCache(filename) {
         if (redTeamCache[filename]) return redTeamCache[filename];
         try {
@@ -6082,12 +6109,13 @@
                         <div style="min-width:0; flex:1; padding-right:12px;">
                             <h3 style="font-size:1.2rem; font-weight:800; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="📄 ${escapeHtml(filename)}">📄 ${escapeHtml(filename)}</h3>
                         </div>
-                        <div style="display:flex; align-items:center; gap:16px; flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
                             <!-- Red-Teaming Toggle Switch -->
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--text-secondary);">
                                 <input type="checkbox" id="redTeamToggle" onchange="toggleRedTeaming('${escapeHtml(filename)}')" style="width:16px; height:16px; accent-color:var(--accent);">
                                 🔍 Giám Định Sự Thật & Thiên Kiến
                             </label>
+                            <button onclick="clearFakeCheckCache('${escapeHtml(filename)}')" class="btn-action" style="padding:6px 12px; font-size:0.75rem; background:rgba(239, 68, 68, 0.12); color:#ef4444; margin:0; border-radius:6px; border:1px solid rgba(239, 68, 68, 0.3); font-weight:700;" title="Xóa toàn bộ Cache Fake Check của tài liệu này">🗑️ Xóa Cache Fake Check</button>
                             <button onclick="closeStudioModal()" class="btn-action" style="padding:8px 20px; font-size:0.8rem; background:rgba(255,255,255,0.08); color:var(--text-primary); margin:0; border-radius:6px; border:1px solid var(--border-glass); font-weight:700;">Đóng</button>
                         </div>
                     </div>
@@ -6229,7 +6257,10 @@
             <div style="font-family:'Plus Jakarta Sans', sans-serif; display:flex; flex-direction:column; gap:12px; height:100%;">
                 <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); border-bottom:1px solid var(--border-glass); padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                     <span>📊 KẾT QUẢ RÀ SOÁT</span>
-                    <button onclick="exportRedTeamReport('${escapeHtml(filename)}')" class="btn-action" style="padding:4px 8px; font-size:0.65rem; margin:0; border-radius:4px; font-weight:700; background:rgba(255,255,255,0.06); border:1px solid var(--border-glass);">📥 Xuất báo cáo</button>
+                    <div style="display:flex; gap:6px;">
+                        <button onclick="clearFakeCheckCache('${escapeHtml(filename)}')" class="btn-action" style="padding:4px 8px; font-size:0.65rem; margin:0; border-radius:4px; font-weight:700; background:rgba(239, 68, 68, 0.12); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3);" title="Xóa cache và rà soát lại tài liệu">🗑️ Xóa Cache</button>
+                        <button onclick="exportRedTeamReport('${escapeHtml(filename)}')" class="btn-action" style="padding:4px 8px; font-size:0.65rem; margin:0; border-radius:4px; font-weight:700; background:rgba(255,255,255,0.06); border:1px solid var(--border-glass);">📥 Xuất báo cáo</button>
+                    </div>
                 </div>
                 <div style="display:flex; gap:6px;">
                     <div style="flex:1; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); padding:6px 4px; border-radius:6px; text-align:center;">
@@ -6280,7 +6311,7 @@
                             <div class="finding-card" id="finding-card-${idx}" onclick="focusFinding(${idx})" style="padding:10px; background:${bgStyle}; border:${borderStyle}; border-radius:6px; cursor:pointer; transition:var(--transition); font-size:0.8rem;">
                                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
                                     <span class="red-team-badge ${badgeClass}">${badgeText}</span>
-                                    <span style="font-size:0.65rem; font-weight:700; color:${confColor}; background:${confColor}15; padding:1px 5px; border-radius:4px;">Độ tin cậy: ${confText} (${Math.round(confVal * 100)}%)</span>
+                                    <span style="font-size:0.65rem; font-weight:700; color:${confColor}; background:${confColor}15; padding:1px 5px; border-radius:4px;" title="Mức độ chắc chắn của AI về phát hiện này">Độ chắc chắn phát hiện: ${confText} (${Math.round(confVal * 100)}%)</span>
                                 </div>
                                 <div style="font-weight:700; color:var(--text-primary); font-style:italic; margin-bottom:6px; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">"${escapeHtml(f.text)}"</div>
                                 <div class="finding-desc" style="color:var(--text-secondary); font-size:0.75rem; line-height:1.4; display:none; padding-top:6px; border-top:1px dashed var(--border-glass); margin-top:6px;">
@@ -6380,7 +6411,7 @@
             
             md += `### Phát hiện ${idx + 1}: ${catName}\n`;
             md += `> **Trích dẫn gốc trong tài liệu**:\n> "${f.text}"\n\n`;
-            md += `- **Độ tin cậy của phân tích**: ${Math.round(f.confidence * 100)}%\n`;
+            md += `- **Độ chắc chắn của AI về phát hiện**: ${Math.round(f.confidence * 100)}%\n`;
             md += `- **Giải thích lý do**: ${f.explanation}\n\n`;
             md += `---\n\n`;
         });
