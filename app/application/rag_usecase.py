@@ -137,9 +137,10 @@ class RAGUseCase:
         system_prompt = (
             "You MUST format all math expressions, Big-O notations, and formulas using strictly LaTeX syntax. "
             "Wrap inline math with single $ (e.g., $O(N^2)$) and block math with double $$.\n"
-            "If the user query is about generating a quiz, making a multiple-choice question set, or contains "
-            "the phrase 'tạo trắc nghiệm' or 'quiz', you MUST generate exactly 3 multiple choice questions based "
-            "on the context. Format the quiz response strictly as a JSON block wrapped in <quiz> and </quiz> tags.\n"
+            "QUIZ GENERATION RULE:\n"
+            "- ONLY generate a quiz if the user's explicit query is specifically requesting to create or generate a quiz / multiple-choice test (e.g., contains 'tạo trắc nghiệm', 'tạo quiz', 'làm bài trắc nghiệm').\n"
+            "- If triggered by an explicit quiz request in the user query, generate exactly 3 multiple choice questions based on the context and format strictly as a JSON block wrapped in <quiz> and </quiz> tags.\n"
+            "- CRITICAL SUMMARY RULE: If the user asks to summarize ('tóm tắt', 'tóm tắt nội dung', 'tóm tắt kèm hình ảnh'), explain, analyze, or answer general questions, DO NOT generate a quiz or multiple-choice questions under any circumstances, even if the document context contains quiz questions or words like 'quiz'/'trắc nghiệm'. Instead, provide a clear, structured summary in Markdown, embedding relevant images from the document context if available using Markdown image syntax `![mô tả](url)`.\n"
             "If the user asks for mathematical calculations, running data analysis, or drawing charts, you MUST write "
             "Python code and call the execute_python_code tool.\n"
             "If the context contains a line '[DATASET] <name>' with a 'File path for pandas analysis: <path>', that path "

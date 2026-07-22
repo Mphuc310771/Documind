@@ -5298,12 +5298,16 @@
             }
         }
 
-        const parsedJson = extractJSON(cleanText);
-        if (parsedJson) {
-            const questions = normalizeQuizQuestions(parsedJson);
-            if (questions && questions.length > 0) {
-                renderInteractiveQuizWidget(el, questions);
-                return;
+        // Only fallback to quiz widget if <quiz> tag was explicitly present or raw text explicitly indicates a quiz
+        const hasQuizTag = rawText.includes('<quiz>') || rawText.includes('</quiz>');
+        if (hasQuizTag) {
+            const parsedJson = extractJSON(cleanText);
+            if (parsedJson) {
+                const questions = normalizeQuizQuestions(parsedJson);
+                if (questions && questions.length > 0) {
+                    renderInteractiveQuizWidget(el, questions);
+                    return;
+                }
             }
         }
 

@@ -138,6 +138,26 @@ class TestDistributedRAGHub(unittest.TestCase):
             list(rag.execute("Câu hỏi cần tra web", search_web=True))
             mock_web.assert_called_once()
 
+    def test_rag_summary_instruction(self):
+        """
+        Tests that RAGUseCase system prompt contains strict summary instructions and does not force quiz generation on summary requests.
+        """
+        mock_store = MagicMock()
+        mock_store.search_similar.return_value = [
+            {"text": "Nội dung bài học có chứa từ quiz hoặc trắc nghiệm", "metadata": {"source": "doc.pdf"}, "distance": 0.2}
+        ]
+
+        mock_llm = MagicMock()
+        mock_llm.generate_answer.return_value = iter(["Tóm tắt nội dung bài học kèm hình ảnh."])
+
+        rag = RAGUseCase(vector_store=mock_store, llm_service=mock_llm)
+        events = list(rag.execute("Tóm tắt nội dung kèm hình ảnh"))
+
+        call_args = mock_llm.generate_answer.call_args
+        system_prompt = call_args[1].get("system_prompt", "")
+        self.assertIn("CRITICAL SUMMARY RULE", system_prompt)
+        self.assertIn("ONLY generate a quiz if the user's explicit query", system_prompt)
+
     def test_document_deletion(self):
         """
         Tests that DeleteUseCase calls delete_document on vector store.
